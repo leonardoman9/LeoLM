@@ -42,7 +42,7 @@ def chat_with_model():
             print(Fore.YELLOW + "Sending request to API..." + Style.RESET_ALL)
 
             data = {
-                "model": "deepseek/deepseek-r1:free",
+                "model": "microsoft/phi-3-medium-128k-instruct:free",
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 5000
