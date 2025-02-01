@@ -14,6 +14,16 @@ except ImportError as e:
 init()
 load_dotenv()
 
+# Add this ASCII art banner with raw string to preserve formatting
+banner = r"""
+ _      _____ ___  _     __  __ 
+| |    | ____/ _ \| |   |  \/  |
+| |    |  _|| | | | |   | |\/| |
+| |___ | |__| |_| | |___| |  | |
+|_____|_____\___/|_____|_|  |_|
+"""
+print(Fore.CYAN + banner + Style.RESET_ALL)
+
 api_key = os.getenv('OPENAI_API_KEY')
 
 model = "qwen/qwen-2-7b-instruct:free"
