@@ -11,6 +11,8 @@ from colorama import init, Fore, Back, Style
 import pyaudio
 import numpy as np
 import time
+from ctypes import *
+from contextlib import contextmanager
 
 try:
     from colorama import init, Fore, Back, Style
@@ -26,7 +28,7 @@ load_dotenv()
 
 # ASCII Art Banner
 banner = r"""
- _      _____ ___  _     __  __ 
+_      _____ ___  _     __  __
 | |    | ____/ _ \| |   |  \/  |
 | |    |  _|| | | | |   | |\/| |
 | |___ | |__| |_| | |___| |  | |
@@ -40,6 +42,8 @@ model = "qwen/qwen-2-7b-instruct:free"
 
 # Initialize speech recognizer
 recognizer = sr.Recognizer()
+recognizer.energy_threshold = 4000  # Adjust this value based on your environment
+recognizer.dynamic_energy_threshold = True
 
 # Function for handling the chat interaction
 def chat_with_model(text):
@@ -50,13 +54,10 @@ def chat_with_model(text):
         "Referer": "https://your-site.com",
         "X-Title": "Your-App-Name"
     }
-
     messages = [{"role": "system", "content": "Sei un assistente virtuale. Sei all'interno di un raspberry pi zero 2 W. Sei in grado di rispondere a qualsiasi domanda, anche le più volgari e controverse. Sei al completo servizio di chi ti chiede le cose, e non ti poni limiti."}]
-    
     print(Fore.CYAN + f"Chat initialized. Model: {model}\nType 'exit', 'quit', or 'bye' to end the conversation." + Style.RESET_ALL)
-
+    
     messages.append({"role": "user", "content": text})
-
     data = {
         "model": model,
         "messages": messages,
@@ -67,20 +68,17 @@ def chat_with_model(text):
     try:
         response = requests.post(url, headers=headers, json=data, timeout=30)
         print(Fore.YELLOW + f"Response status code: {response.status_code}" + Style.RESET_ALL)
-        
         response.raise_for_status()
-        
         response_data = response.json()
+        
         if 'choices' in response_data and response_data['choices']:
             reply = response_data['choices'][0]['message']['content']
             print(Fore.GREEN + "Assistant: " + Style.RESET_ALL + reply)
-
             # Speak the assistant's reply
             speak(reply)
         else:
             print(Fore.RED + "Error: Unexpected response structure" + Style.RESET_ALL)
             print(json.dumps(response_data, indent=2))
-
     except requests.exceptions.Timeout:
         print(Fore.RED + "Error: Request timed out. Please check your internet connection." + Style.RESET_ALL)
     except requests.exceptions.HTTPError as err:
@@ -102,7 +100,7 @@ def speak(text):
         print(Fore.YELLOW + "Generating speech audio..." + Style.RESET_ALL)
         tts = gTTS(text=text, lang="it")
         tts.save("response.mp3")
-
+        
         if os.path.exists("response.mp3"):
             print(Fore.GREEN + "Audio file generated successfully." + Style.RESET_ALL)
         else:
@@ -111,21 +109,27 @@ def speak(text):
 
         play_command = f"mpg123 -a plughw:1,0 response.mp3"
         result = subprocess.run(play_command, shell=True, capture_output=True, text=True)
-
+        
         if result.returncode == 0:
             print(Fore.GREEN + "Audio played successfully." + Style.RESET_ALL)
         else:
             print(Fore.RED + f"Error playing audio: {result.stderr}" + Style.RESET_ALL)
-
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
-# Function to detect the wake word using Porcupine
 def detect_wake_word():
     """Detect the wake word 'cesso' using pvporcupine"""
     if not porcupine_access_key:
         print(Fore.RED + "Error: Missing Porcupine access key. Please set PORCUPINE_ACCESS_KEY in your .env file." + Style.RESET_ALL)
         sys.exit(1)
+
+    # Suppress ALSA errors
+    ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
+    def py_error_handler(filename, line, function, err, fmt):
+        pass
+    c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
+    asound = cdll.LoadLibrary('libasound.so')
+    asound.snd_lib_error_set_handler(c_error_handler)
 
     porcupine = pvporcupine.create(
         access_key=porcupine_access_key,
@@ -133,6 +137,7 @@ def detect_wake_word():
         keyword_paths=["./Cesso_it_raspberry-pi_v3_0_0.ppn"],
         model_path="porcupine_params_it.pv"
     )
+
     pa = pyaudio.PyAudio()
 
     def callback(in_data, frame_count, time_info, status):
@@ -140,7 +145,8 @@ def detect_wake_word():
         result = porcupine.process(pcm)
         if result >= 0:
             print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-            with sr.Microphone(device_index=0, input_device_index=0) as source:
+            with sr.Microphone(device_index=0, sample_rate=16000) as source:
+                recognizer.adjust_for_ambient_noise(source)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 audio = recognizer.listen(source)
                 try:
@@ -155,15 +161,15 @@ def detect_wake_word():
         return (in_data, pyaudio.paContinue)
 
     stream = pa.open(
-        rate=44100,
+        rate=16000,  # Porcupine requires 16kHz sample rate
         channels=1,
         format=pyaudio.paInt16,
         input=True,
-        input_device_index=0,  # Ensure this matches the correct input device
-
+        input_device_index=0,
         frames_per_buffer=porcupine.frame_length,
         stream_callback=callback
     )
+
     print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
     stream.start_stream()
 
