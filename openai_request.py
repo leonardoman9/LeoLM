@@ -205,14 +205,28 @@ def detect_wake_word():
             # Convert the input data to numpy array
             audio_data = np.frombuffer(in_data, dtype=np.int16)
             
-            # Pad the audio data if it's shorter than expected
-            if len(audio_data) < porcupine.frame_length:
-                audio_data = np.pad(audio_data, (0, porcupine.frame_length - len(audio_data)))
-            elif len(audio_data) > porcupine.frame_length:
-                audio_data = audio_data[:porcupine.frame_length]
+            # Calculate the resampling factor
+            resampling_factor = 16000 / 44100
+            
+            # Calculate the target length after resampling
+            target_length = int(len(audio_data) * resampling_factor)
+            
+            # Resample the audio data
+            resampled_data = scipy.signal.resample(audio_data, target_length)
+            
+            # Ensure we have the correct number of samples
+            if len(resampled_data) >= porcupine.frame_length:
+                # Process only the required number of samples
+                detection_data = resampled_data[:porcupine.frame_length]
+            else:
+                # Pad with zeros if we don't have enough samples
+                detection_data = np.pad(resampled_data, (0, porcupine.frame_length - len(resampled_data)))
+            
+            # Convert back to int16
+            detection_data = detection_data.astype(np.int16)
             
             # Process with Porcupine
-            result = porcupine.process(audio_data)
+            result = porcupine.process(detection_data)
             
             if result >= 0:
                 print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
@@ -230,12 +244,14 @@ def detect_wake_word():
         for key, value in device_info.items():
             print(f"{key}: {value}")
         
-        # Calculate optimal buffer size
+        # Use device's default sample rate
         sample_rate = int(device_info['defaultSampleRate'])
-        frames_per_buffer = porcupine.frame_length
+        # Calculate buffer size based on the ratio between input and output rates
+        buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
         
         print(f"Using sample rate: {sample_rate}")
-        print(f"Frame length: {frames_per_buffer}")
+        print(f"Buffer size: {buffer_size}")
+        print(f"Porcupine frame length: {porcupine.frame_length}")
 
         stream = pa.open(
             rate=sample_rate,
@@ -243,7 +259,7 @@ def detect_wake_word():
             format=pyaudio.paInt16,
             input=True,
             input_device_index=0,
-            frames_per_buffer=frames_per_buffer,
+            frames_per_buffer=buffer_size,
             stream_callback=callback
         )
 
@@ -274,6 +290,7 @@ def detect_wake_word():
                 porcupine.delete()
         except Exception as e:
             print(Fore.RED + f"Error deleting Porcupine: {e}" + Style.RESET_ALL)
+
 
 
 if __name__ == "__main__":
