@@ -273,7 +273,7 @@ def detect_wake_word():
 
             # Create audio stream for wake word detection
             stream = pa.open(
-                rate= device_info['defaultSampleRate'],
+                rate= int(device_info['defaultSampleRate']),
                 channels=1,
                 format=pyaudio.paInt16,
                 input=True,
