@@ -155,6 +155,58 @@ def speak(text):
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
+def play_start_sound():
+    """Play a rising beep to indicate start of listening"""
+    try:
+        # Generate a rising beep sound
+        sample_rate = 44100
+        duration = 0.2  # seconds
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        frequency = np.linspace(800, 1200, len(t))  # Rising frequency
+        beep = np.sin(2 * np.pi * frequency * t) * 0.5
+        beep = (beep * 32767).astype(np.int16)
+        
+        # Save as WAV file
+        import wave
+        with wave.open("start_sound.wav", "w") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(beep.tobytes())
+        
+        # Play the sound
+        play_command = f"aplay -D plughw:1,0 start_sound.wav"
+        subprocess.run(play_command, shell=True, capture_output=True, text=True)
+        
+    except Exception as e:
+        print(Fore.RED + f"Error playing start sound: {e}" + Style.RESET_ALL)
+
+def play_stop_sound():
+    """Play a falling beep to indicate end of listening"""
+    try:
+        # Generate a falling beep sound
+        sample_rate = 44100
+        duration = 0.2  # seconds
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        frequency = np.linspace(1200, 800, len(t))  # Falling frequency
+        beep = np.sin(2 * np.pi * frequency * t) * 0.5
+        beep = (beep * 32767).astype(np.int16)
+        
+        # Save as WAV file
+        import wave
+        with wave.open("stop_sound.wav", "w") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(beep.tobytes())
+        
+        # Play the sound
+        play_command = f"aplay -D plughw:1,0 stop_sound.wav"
+        subprocess.run(play_command, shell=True, capture_output=True, text=True)
+        
+    except Exception as e:
+        print(Fore.RED + f"Error playing stop sound: {e}" + Style.RESET_ALL)
+
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
     # Check for FLAC installation
@@ -186,9 +238,15 @@ def process_speech_recognition():
             try:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
                 recognizer.adjust_for_ambient_noise(audio_source, duration=1)
+                
+                # Play start sound to indicate the user can speak
+                play_start_sound()
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 
                 audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
+                
+                # Play stop sound to indicate the system has finished listening
+                play_stop_sound()
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
                 try:
@@ -197,14 +255,12 @@ def process_speech_recognition():
                     chat_with_model(command)
                 except sr.UnknownValueError:
                     print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
-                    play_notification()  # Play error notification
                 except sr.RequestError as e:
                     print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
-                    play_notification()  # Play error notification
                 
             except sr.WaitTimeoutError:
                 print(Fore.RED + "Listening timed out. Please try again." + Style.RESET_ALL)
-                play_notification()  # Play error notification
+                play_stop_sound()  # Play stop sound even on timeout
             except Exception as e:
                 print(Fore.RED + f"Error in speech recognition: {e}" + Style.RESET_ALL)
                 
