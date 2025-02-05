@@ -140,7 +140,7 @@ def detect_wake_word():
         result = porcupine.process(pcm)
         if result >= 0:
             print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-            with sr.Microphone(device_index=0) as source:
+            with sr.Microphone(device_index=0, input_device_index=0) as source:
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 audio = recognizer.listen(source)
                 try:
