@@ -157,6 +157,18 @@ def speak(text):
 
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
+    # Check for FLAC installation
+    try:
+        subprocess.run(['which', 'flac'], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print(Fore.YELLOW + "Installing FLAC codec..." + Style.RESET_ALL)
+        try:
+            subprocess.run(['sudo', 'apt-get', 'update'], check=True)
+            subprocess.run(['sudo', 'apt-get', 'install', '-y', 'flac'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(Fore.RED + f"Error installing FLAC: {e}" + Style.RESET_ALL)
+            return
+
     # Wait a bit for the previous audio stream to fully close
     time.sleep(0.5)
     
@@ -179,17 +191,20 @@ def process_speech_recognition():
                 audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
-                command = recognizer.recognize_google(audio_input, language="it-IT")
-                print(Fore.GREEN + f"User said: {command}" + Style.RESET_ALL)
-                
-                chat_with_model(command)
+                try:
+                    command = recognizer.recognize_google(audio_input, language="it-IT")
+                    print(Fore.GREEN + f"User said: {command}" + Style.RESET_ALL)
+                    chat_with_model(command)
+                except sr.UnknownValueError:
+                    print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
+                    play_notification()  # Play error notification
+                except sr.RequestError as e:
+                    print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
+                    play_notification()  # Play error notification
                 
             except sr.WaitTimeoutError:
                 print(Fore.RED + "Listening timed out. Please try again." + Style.RESET_ALL)
-            except sr.UnknownValueError:
-                print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
-            except sr.RequestError as e:
-                print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
+                play_notification()  # Play error notification
             except Exception as e:
                 print(Fore.RED + f"Error in speech recognition: {e}" + Style.RESET_ALL)
                 
@@ -203,6 +218,32 @@ def process_speech_recognition():
             source.pyaudio_instance.terminate()
         except:
             pass
+
+def play_notification():
+    """Play a simple notification sound when wake word is detected"""
+    try:
+        # Generate a short beep sound
+        sample_rate = 44100
+        duration = 0.2  # seconds
+        frequency = 1000  # Hz
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        beep = np.sin(2 * np.pi * frequency * t) * 0.5
+        beep = (beep * 32767).astype(np.int16)
+        
+        # Save as WAV file
+        import wave
+        with wave.open("notification.wav", "w") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(beep.tobytes())
+        
+        # Play the sound
+        play_command = f"aplay -D plughw:1,0 notification.wav"
+        subprocess.run(play_command, shell=True, capture_output=True, text=True)
+        
+    except Exception as e:
+        print(Fore.RED + f"Error playing notification: {e}" + Style.RESET_ALL)
 
 def detect_wake_word():
     """Detect the wake word 'Cesso' using pvporcupine"""
@@ -262,6 +303,7 @@ def detect_wake_word():
                     
                     if result >= 0:
                         print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
+                        play_notification()  # Play notification sound
                         wake_word_event.set()
                     
                     return (in_data, pyaudio.paContinue)
