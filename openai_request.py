@@ -130,8 +130,7 @@ def detect_wake_word():
     porcupine = pvporcupine.create(
         access_key=porcupine_access_key,
         keywords=["Cesso"],
-        model_path = "porcupine_params_it.pv",
-        keyword_paths=["Cesso_it_raspberry-pi_v3_0_0.ppn"]
+        keyword_paths=["./Cesso_it_raspberry-pi_v3_0_0.ppn"]
     )
     pa = pyaudio.PyAudio()
 
@@ -180,4 +179,5 @@ if __name__ == "__main__":
     if not api_key:
         print(Fore.RED + "Error: Missing API key. Please set OPENAI_API_KEY in your .env file." + Style.RESET_ALL)
     else:
-        detect_wake_word()  # Start detecting the wake word using Porcupine
+        print(f"OpenAI API Key: {api_key}")
+        print(f"Porcupine Access Key: {porcupine_access_key}")
