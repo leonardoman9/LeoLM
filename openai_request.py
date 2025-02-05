@@ -164,19 +164,19 @@ def process_speech_recognition():
         # Initialize microphone source with the USB microphone
         source = sr.Microphone(
             device_index=0,  # Use index 0 for USB microphone
-            sample_rate=16000,
+            sample_rate=44100,  # Match the sample rate used by wake word detection
             chunk_size=1024
         )
         
         print(Fore.YELLOW + "Initializing speech recognition..." + Style.RESET_ALL)
         
-        with source:
+        with source as audio_source:
             try:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
-                recognizer.adjust_for_ambient_noise(source, duration=1)
+                recognizer.adjust_for_ambient_noise(audio_source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 
-                audio_input = recognizer.listen(source, timeout=5, phrase_time_limit=5)
+                audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
                 command = recognizer.recognize_google(audio_input, language="it-IT")
@@ -192,9 +192,17 @@ def process_speech_recognition():
                 print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
             except Exception as e:
                 print(Fore.RED + f"Error in speech recognition: {e}" + Style.RESET_ALL)
-    
+                
     except Exception as e:
         print(Fore.RED + f"Error initializing microphone: {e}" + Style.RESET_ALL)
+    finally:
+        # Make sure we release the microphone
+        try:
+            source.stream.stop_stream()
+            source.stream.close()
+            source.pyaudio_instance.terminate()
+        except:
+            pass
 
 def detect_wake_word():
     """Detect the wake word 'Cesso' using pvporcupine"""
