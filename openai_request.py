@@ -10,6 +10,7 @@ import json
 from colorama import init, Fore, Back, Style
 import pyaudio
 import numpy as np
+import time
 
 try:
     from colorama import init, Fore, Back, Style
@@ -129,6 +130,7 @@ def detect_wake_word():
     porcupine = pvporcupine.create(
         access_key=porcupine_access_key,
         keywords=["Cesso"],
+        model_path = "porcupine_params_it.pv"
         keyword_paths=["Cesso_it_raspberry-pi_v3_0_0.ppn"]
     )
     pa = pyaudio.PyAudio()
@@ -165,7 +167,7 @@ def detect_wake_word():
 
     try:
         while True:
-            pass  # Keep the main thread alive
+            time.sleep(1)  # Sleep to reduce CPU usage
     except KeyboardInterrupt:
         print(Fore.YELLOW + "Stopping wake word detection..." + Style.RESET_ALL)
     finally:
