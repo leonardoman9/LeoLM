@@ -1,5 +1,8 @@
 import os
 import pvporcupine  
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def test_porcupine():
     access_key = os.getenv('PORCUPINE_ACCESS_KEY')
