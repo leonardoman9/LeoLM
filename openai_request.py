@@ -181,3 +181,4 @@ if __name__ == "__main__":
     else:
         print(f"OpenAI API Key: {api_key}")
         print(f"Porcupine Access Key: {porcupine_access_key}")
+        detect_wake_word()  # Start detecting the wake word using Porcupine
