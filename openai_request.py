@@ -151,7 +151,6 @@ def speak(text):
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
-
 def detect_wake_word():
     """Detect the wake word 'cesso' using pvporcupine"""
     if not porcupine_access_key:
@@ -179,14 +178,10 @@ def detect_wake_word():
 
     pa = pyaudio.PyAudio()
     
-    # Use a supported sample rate (e.g., 48000) and resample the audio
-    RECORD_RATE = 48000  # Your microphone's supported rate
-    PORCUPINE_RATE = 16000  # Required by Porcupine
-
     def process_audio_input():
         """Handle audio input and speech recognition"""
         try:
-            with sr.Microphone(device_index=0, sample_rate=RECORD_RATE) as source:
+            with sr.Microphone(device_index=0) as source:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
                 recognizer.adjust_for_ambient_noise(source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
@@ -210,11 +205,14 @@ def detect_wake_word():
             # Convert the input data to numpy array
             audio_data = np.frombuffer(in_data, dtype=np.int16)
             
-            # Resample to 16kHz for Porcupine
-            resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * PORCUPINE_RATE / RECORD_RATE))
+            # Pad the audio data if it's shorter than expected
+            if len(audio_data) < porcupine.frame_length:
+                audio_data = np.pad(audio_data, (0, porcupine.frame_length - len(audio_data)))
+            elif len(audio_data) > porcupine.frame_length:
+                audio_data = audio_data[:porcupine.frame_length]
             
             # Process with Porcupine
-            result = porcupine.process(resampled_data.astype(np.int16))
+            result = porcupine.process(audio_data)
             
             if result >= 0:
                 print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
@@ -225,25 +223,22 @@ def detect_wake_word():
             print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
             return (in_data, pyaudio.paContinue)
 
-    # First check supported rates
-    print("Checking supported sample rates...")
     try:
+        # Get device info
         device_info = pa.get_device_info_by_index(0)
         print(f"\nDevice Info for index 0:")
         for key, value in device_info.items():
             print(f"{key}: {value}")
         
-        # Use the device's default sample rate
-        RECORD_RATE = int(device_info['defaultSampleRate'])
-        print(f"Using device's default sample rate: {RECORD_RATE}")
-    except Exception as e:
-        print(Fore.RED + f"Error getting device info: {e}" + Style.RESET_ALL)
-        return
+        # Calculate optimal buffer size
+        sample_rate = int(device_info['defaultSampleRate'])
+        frames_per_buffer = porcupine.frame_length
+        
+        print(f"Using sample rate: {sample_rate}")
+        print(f"Frame length: {frames_per_buffer}")
 
-    try:
-        frames_per_buffer = int(RECORD_RATE/16000 * porcupine.frame_length)
         stream = pa.open(
-            rate=RECORD_RATE,
+            rate=sample_rate,
             channels=1,
             format=pyaudio.paInt16,
             input=True,
@@ -279,6 +274,7 @@ def detect_wake_word():
                 porcupine.delete()
         except Exception as e:
             print(Fore.RED + f"Error deleting Porcupine: {e}" + Style.RESET_ALL)
+
 
 if __name__ == "__main__":
     if not api_key:
