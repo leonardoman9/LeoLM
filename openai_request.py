@@ -157,24 +157,23 @@ def speak(text):
 
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
-    # Create a new PyAudio instance for this thread
-    audio = pyaudio.PyAudio()
     try:
-        # Initialize microphone source with explicit parameters
+        # Initialize microphone source with the USB microphone
         source = sr.Microphone(
-            device_index=0,
+            device_index=1,  # Use index 1 for USB microphone
             sample_rate=16000,
             chunk_size=1024
         )
         
-        # Use a context manager for the microphone
-        with source as mic:
+        print(Fore.YELLOW + "Initializing speech recognition..." + Style.RESET_ALL)
+        
+        with source:
             try:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
-                recognizer.adjust_for_ambient_noise(mic, duration=1)
+                recognizer.adjust_for_ambient_noise(source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 
-                audio_input = recognizer.listen(mic, timeout=5, phrase_time_limit=5)
+                audio_input = recognizer.listen(source, timeout=5, phrase_time_limit=5)
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
                 command = recognizer.recognize_google(audio_input, language="it-IT")
@@ -193,13 +192,6 @@ def process_speech_recognition():
     
     except Exception as e:
         print(Fore.RED + f"Error initializing microphone: {e}" + Style.RESET_ALL)
-    
-    finally:
-        # Clean up PyAudio
-        try:
-            audio.terminate()
-        except Exception as e:
-            print(Fore.RED + f"Error terminating PyAudio: {e}" + Style.RESET_ALL)
 
 def detect_wake_word():
     """Detect the wake word 'Cesso' using pvporcupine"""
@@ -227,64 +219,71 @@ def detect_wake_word():
     )
 
     pa = pyaudio.PyAudio()
-    wake_word_detected = False
-    wake_word_event = threading.Event()
 
-    def audio_callback(in_data, frame_count, time_info, status):
-        try:
-            # Convert the input data to numpy array
-            audio_data = np.frombuffer(in_data, dtype=np.int16)
-            
-            # Resample audio data from 44100 Hz to 16000 Hz
-            resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / 44100))
-            
-            # Ensure the resampled data matches Porcupine's frame length
-            if len(resampled_data) > porcupine.frame_length:
-                resampled_data = resampled_data[:porcupine.frame_length]
-            elif len(resampled_data) < porcupine.frame_length:
-                resampled_data = np.pad(resampled_data, (0, porcupine.frame_length - len(resampled_data)))
-            
-            # Convert to int16
-            detection_data = resampled_data.astype(np.int16)
-            
-            # Process with Porcupine
-            result = porcupine.process(detection_data)
-            
-            if result >= 0:
-                print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-                wake_word_event.set()
-            
-            return (in_data, pyaudio.paContinue)
-        except Exception as e:
-            print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
-            return (in_data, pyaudio.paContinue)
+    # List all available audio devices
+    print("\nAvailable audio devices:")
+    for i in range(pa.get_device_count()):
+        dev_info = pa.get_device_info_by_index(i)
+        print(f"Device {i}: {dev_info['name']}")
 
+    # Use device index 1 for USB microphone
+    device_index = 1
+    
     try:
-        # Get device info and print it
-        device_info = pa.get_device_info_by_index(0)
-        print(f"\nDevice Info for index 0:")
+        device_info = pa.get_device_info_by_index(device_index)
+        print(f"\nUsing device {device_index}:")
         for key, value in device_info.items():
             print(f"{key}: {value}")
 
         # Use device's default sample rate
         sample_rate = int(device_info['defaultSampleRate'])
-        # Calculate buffer size based on the ratio between input and output rates
         buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
 
         print(f"Using sample rate: {sample_rate}")
         print(f"Buffer size: {buffer_size}")
         print(f"Porcupine frame length: {porcupine.frame_length}")
 
-        # Create and start the audio stream
         stream = pa.open(
             rate=sample_rate,
             channels=1,
             format=pyaudio.paInt16,
             input=True,
-            input_device_index=0,
+            input_device_index=device_index,  # Use the USB microphone
             frames_per_buffer=buffer_size,
             stream_callback=audio_callback
         )
+
+        wake_word_detected = False
+        wake_word_event = threading.Event()
+
+        def audio_callback(in_data, frame_count, time_info, status):
+            try:
+                # Convert the input data to numpy array
+                audio_data = np.frombuffer(in_data, dtype=np.int16)
+                
+                # Resample audio data from 44100 Hz to 16000 Hz
+                resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / 44100))
+                
+                # Ensure the resampled data matches Porcupine's frame length
+                if len(resampled_data) > porcupine.frame_length:
+                    resampled_data = resampled_data[:porcupine.frame_length]
+                elif len(resampled_data) < porcupine.frame_length:
+                    resampled_data = np.pad(resampled_data, (0, porcupine.frame_length - len(resampled_data)))
+                
+                # Convert to int16
+                detection_data = resampled_data.astype(np.int16)
+                
+                # Process with Porcupine
+                result = porcupine.process(detection_data)
+                
+                if result >= 0:
+                    print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
+                    wake_word_event.set()
+                
+                return (in_data, pyaudio.paContinue)
+            except Exception as e:
+                print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
+                return (in_data, pyaudio.paContinue)
 
         print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
         stream.start_stream()
@@ -318,7 +317,7 @@ def detect_wake_word():
                             channels=1,
                             format=pyaudio.paInt16,
                             input=True,
-                            input_device_index=0,
+                            input_device_index=device_index,
                             frames_per_buffer=buffer_size,
                             stream_callback=audio_callback
                         )
