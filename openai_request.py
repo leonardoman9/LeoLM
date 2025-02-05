@@ -289,7 +289,7 @@ def detect_wake_word():
         print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
         stream.start_stream()
 
-        try:
+    try:
         while True:
             if wake_word_event.is_set():
                 # Pause the wake word detection stream
