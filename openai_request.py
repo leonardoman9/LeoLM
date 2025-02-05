@@ -5,7 +5,8 @@ try:
     import os
     from colorama import init, Fore, Back, Style
     from dotenv import load_dotenv
-    from gtts import gTTS  # Import gTTS for text-to-speech
+    from gtts import gTTS
+    import subprocess  # For debugging audio playback
 except ImportError as e:
     print(f"Error: Missing required dependencies. Please run 'pip install -r requirements.txt'")
     print(f"Missing module: {e.name}")
@@ -29,12 +30,36 @@ api_key = os.getenv('OPENAI_API_KEY')
 
 model = "qwen/qwen-2-7b-instruct:free"
 
+def check_audio():
+    """Check available audio devices on Raspberry Pi"""
+    print(Fore.YELLOW + "Checking available audio devices..." + Style.RESET_ALL)
+    os.system("aplay -l")
+
 def speak(text):
-    """Convert text to speech and play it"""
+    """Convert text to speech and play it on Raspberry Pi"""
     try:
-        tts = gTTS(text=text, lang="it")  # Change "it" to "en" for English
+        print(Fore.YELLOW + "Generating speech audio..." + Style.RESET_ALL)
+        tts = gTTS(text=text, lang="it")  
         tts.save("response.mp3")
-        os.system("mpg123 -q response.mp3")  # Play the audio with mpg123
+
+        # Debug: Check if the file was created
+        if os.path.exists("response.mp3"):
+            print(Fore.GREEN + "Audio file generated successfully." + Style.RESET_ALL)
+        else:
+            print(Fore.RED + "Error: Audio file was not created!" + Style.RESET_ALL)
+            return
+
+        # Play audio on the correct device
+        print(Fore.YELLOW + "Playing audio..." + Style.RESET_ALL)
+        play_command = f"mpg123 -a plughw:1,0 response.mp3"
+        result = subprocess.run(play_command, shell=True, capture_output=True, text=True)
+
+        # Debugging output
+        if result.returncode == 0:
+            print(Fore.GREEN + "Audio played successfully." + Style.RESET_ALL)
+        else:
+            print(Fore.RED + f"Error playing audio: {result.stderr}" + Style.RESET_ALL)
+
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
@@ -115,4 +140,5 @@ if __name__ == "__main__":
     if not api_key:
         print(Fore.RED + "Error: Missing API key. Please set OPENAI_API_KEY in your .env file." + Style.RESET_ALL)
     else:
+        check_audio()  # Debugging: List available audio devices
         chat_with_model()
