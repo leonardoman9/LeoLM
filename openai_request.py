@@ -13,7 +13,7 @@ import numpy as np
 import time
 from ctypes import *
 from contextlib import contextmanager
-
+import scipy.signal  # Add this new import
 try:
     from colorama import init, Fore, Back, Style
     from dotenv import load_dotenv
@@ -21,6 +21,40 @@ except ImportError as e:
     print(f"Error: Missing required dependencies. Please run 'pip install -r requirements.txt'")
     print(f"Missing module: {e.name}")
     sys.exit(1)
+def list_audio_devices():
+    pa = pyaudio.PyAudio()
+    device_index = 0  # Your USB microphone index
+    
+    # Get device info
+    try:
+        device_info = pa.get_device_info_by_index(device_index)
+        print(f"\nDevice Info for index {device_index}:")
+        for key, value in device_info.items():
+            print(f"{key}: {value}")
+        
+        # Test different sample rates
+        test_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000]
+        supported_rates = []
+        
+        for rate in test_rates:
+            try:
+                stream = pa.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=rate,
+                    input=True,
+                    input_device_index=device_index,
+                    frames_per_buffer=1024
+                )
+                stream.close()
+                supported_rates.append(rate)
+                print(f"Sample rate {rate} Hz is supported")
+            except:
+                print(f"Sample rate {rate} Hz is NOT supported")
+                
+        return supported_rates
+    finally:
+        pa.terminate()
 
 # Initialize colorama and load environment variables
 init()
@@ -117,6 +151,7 @@ def speak(text):
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
+
 def detect_wake_word():
     """Detect the wake word 'cesso' using pvporcupine"""
     if not porcupine_access_key:
@@ -139,13 +174,24 @@ def detect_wake_word():
     )
 
     pa = pyaudio.PyAudio()
+    
+    # Use a supported sample rate (e.g., 44100) and resample the audio
+    RECORD_RATE = 44100  # Your microphone's supported rate
+    PORCUPINE_RATE = 16000  # Required by Porcupine
 
     def callback(in_data, frame_count, time_info, status):
-        pcm = np.frombuffer(in_data, dtype=np.int16)
-        result = porcupine.process(pcm)
+        # Convert the input data to numpy array
+        audio_data = np.frombuffer(in_data, dtype=np.int16)
+        
+        # Resample to 16kHz for Porcupine
+        resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * PORCUPINE_RATE / RECORD_RATE))
+        
+        # Process with Porcupine
+        result = porcupine.process(resampled_data.astype(np.int16))
+        
         if result >= 0:
             print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-            with sr.Microphone(device_index=0, sample_rate=16000) as source:
+            with sr.Microphone(device_index=0) as source:
                 recognizer.adjust_for_ambient_noise(source)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 audio = recognizer.listen(source)
@@ -153,20 +199,32 @@ def detect_wake_word():
                     print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                     command = recognizer.recognize_google(audio, language="it-IT")
                     print(Fore.GREEN + f"User said: {command}" + Style.RESET_ALL)
-                    chat_with_model(command)  # Send recognized text to LLM
+                    chat_with_model(command)
                 except sr.UnknownValueError:
                     print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
                 except sr.RequestError as e:
                     print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
         return (in_data, pyaudio.paContinue)
 
+    # First check supported rates
+    print("Checking supported sample rates...")
+    supported_rates = list_audio_devices()
+    
+    if not supported_rates:
+        print(Fore.RED + "No supported sample rates found!" + Style.RESET_ALL)
+        return
+        
+    # Use the highest supported rate
+    RECORD_RATE = max(supported_rates)
+    print(f"Using sample rate: {RECORD_RATE}")
+
     stream = pa.open(
-        rate=16000,  # Porcupine requires 16kHz sample rate
+        rate=RECORD_RATE,
         channels=1,
         format=pyaudio.paInt16,
         input=True,
         input_device_index=0,
-        frames_per_buffer=porcupine.frame_length,
+        frames_per_buffer=int(RECORD_RATE/16000 * porcupine.frame_length),  # Adjust buffer size
         stream_callback=callback
     )
 
@@ -175,7 +233,7 @@ def detect_wake_word():
 
     try:
         while True:
-            time.sleep(1)  # Sleep to reduce CPU usage
+            time.sleep(0.1)
     except KeyboardInterrupt:
         print(Fore.YELLOW + "Stopping wake word detection..." + Style.RESET_ALL)
     finally:
@@ -183,6 +241,7 @@ def detect_wake_word():
         stream.close()
         pa.terminate()
         porcupine.delete()
+
 
 if __name__ == "__main__":
     if not api_key:
