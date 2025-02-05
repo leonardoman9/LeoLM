@@ -1,3 +1,5 @@
+import os
+import pvporcupine  
 
 def test_porcupine():
     access_key = os.getenv('PORCUPINE_ACCESS_KEY')
