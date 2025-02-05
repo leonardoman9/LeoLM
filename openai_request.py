@@ -157,6 +157,9 @@ def speak(text):
 
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
+    # Wait a bit for the previous audio stream to fully close
+    time.sleep(0.5)
+    
     try:
         # Initialize microphone source with the USB microphone
         source = sr.Microphone(
@@ -218,142 +221,110 @@ def detect_wake_word():
         model_path="porcupine_params_it.pv"
     )
 
-    pa = pyaudio.PyAudio()
-
-    # List all available audio devices
-    print("\nAvailable audio devices:")
-    for i in range(pa.get_device_count()):
-        dev_info = pa.get_device_info_by_index(i)
-        print(f"Device {i}: {dev_info['name']}")
-
-    # Define audio callback before we use it
-    def audio_callback(in_data, frame_count, time_info, status):
+    while True:
         try:
-            # Convert the input data to numpy array
-            audio_data = np.frombuffer(in_data, dtype=np.int16)
+            pa = pyaudio.PyAudio()
             
-            # Resample audio data from 44100 Hz to 16000 Hz
-            resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / 44100))
-            
-            # Ensure the resampled data matches Porcupine's frame length
-            if len(resampled_data) > porcupine.frame_length:
-                resampled_data = resampled_data[:porcupine.frame_length]
-            elif len(resampled_data) < porcupine.frame_length:
-                resampled_data = np.pad(resampled_data, (0, porcupine.frame_length - len(resampled_data)))
-            
-            # Convert to int16
-            detection_data = resampled_data.astype(np.int16)
-            
-            # Process with Porcupine
-            result = porcupine.process(detection_data)
-            
-            if result >= 0:
-                print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-                wake_word_event.set()
-            
-            return (in_data, pyaudio.paContinue)
-        except Exception as e:
-            print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
-            return (in_data, pyaudio.paContinue)
+            # List all available audio devices
+            print("\nAvailable audio devices:")
+            for i in range(pa.get_device_count()):
+                dev_info = pa.get_device_info_by_index(i)
+                print(f"Device {i}: {dev_info['name']}")
 
-    # Use device index 0 for USB microphone (the one with input channels)
-    device_index = 0
-    
-    try:
-        device_info = pa.get_device_info_by_index(device_index)
-        print(f"\nUsing device {device_index}:")
-        for key, value in device_info.items():
-            print(f"{key}: {value}")
-
-        # Use device's default sample rate
-        sample_rate = int(device_info['defaultSampleRate'])
-        buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
-
-        print(f"Using sample rate: {sample_rate}")
-        print(f"Buffer size: {buffer_size}")
-        print(f"Porcupine frame length: {porcupine.frame_length}")
-
-        wake_word_detected = False
-        wake_word_event = threading.Event()
-
-        stream = pa.open(
-            rate=sample_rate,
-            channels=1,
-            format=pyaudio.paInt16,
-            input=True,
-            input_device_index=device_index,
-            frames_per_buffer=buffer_size,
-            stream_callback=audio_callback
-        )
-
-        print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
-        stream.start_stream()
-
-        # Main loop
-        while True:
-            if wake_word_event.is_set():
-                # Pause the wake word detection stream
-                stream.stop_stream()
-                
-                # Start speech recognition in a separate thread
-                recognition_thread = threading.Thread(target=process_speech_recognition)
-                recognition_thread.start()
-                
-                # Wait for the recognition thread to complete
-                recognition_thread.join()
-                
-                # Reset the wake word event
-                wake_word_event.clear()
-                
-                # Restart the wake word detection stream
+            # Define audio callback before we use it
+            def audio_callback(in_data, frame_count, time_info, status):
                 try:
-                    stream.start_stream()
-                    print(Fore.YELLOW + "Resuming wake word detection..." + Style.RESET_ALL)
+                    # Convert the input data to numpy array
+                    audio_data = np.frombuffer(in_data, dtype=np.int16)
+                    
+                    # Resample audio data from 44100 Hz to 16000 Hz
+                    resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / 44100))
+                    
+                    # Ensure the resampled data matches Porcupine's frame length
+                    if len(resampled_data) > porcupine.frame_length:
+                        resampled_data = resampled_data[:porcupine.frame_length]
+                    elif len(resampled_data) < porcupine.frame_length:
+                        resampled_data = np.pad(resampled_data, (0, porcupine.frame_length - len(resampled_data)))
+                    
+                    # Convert to int16
+                    detection_data = resampled_data.astype(np.int16)
+                    
+                    # Process with Porcupine
+                    result = porcupine.process(detection_data)
+                    
+                    if result >= 0:
+                        print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
+                        wake_word_event.set()
+                    
+                    return (in_data, pyaudio.paContinue)
                 except Exception as e:
-                    print(Fore.RED + f"Error restarting stream: {e}" + Style.RESET_ALL)
-                    # Try to recreate the stream if it failed to restart
-                    try:
-                        stream = pa.open(
-                            rate=sample_rate,
-                            channels=1,
-                            format=pyaudio.paInt16,
-                            input=True,
-                            input_device_index=device_index,
-                            frames_per_buffer=buffer_size,
-                            stream_callback=audio_callback
-                        )
-                        stream.start_stream()
-                        print(Fore.GREEN + "Successfully recreated and started stream" + Style.RESET_ALL)
-                    except Exception as e:
-                        print(Fore.RED + f"Error recreating stream: {e}" + Style.RESET_ALL)
-                        raise
-            
-            time.sleep(0.1)
+                    print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
+                    return (in_data, pyaudio.paContinue)
 
-    except KeyboardInterrupt:
-        print(Fore.YELLOW + "\nStopping wake word detection..." + Style.RESET_ALL)
+            # Use device index 0 for USB microphone
+            device_index = 0
+            
+            device_info = pa.get_device_info_by_index(device_index)
+            print(f"\nUsing device {device_index}:")
+            for key, value in device_info.items():
+                print(f"{key}: {value}")
+
+            sample_rate = int(device_info['defaultSampleRate'])
+            buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
+
+            print(f"Using sample rate: {sample_rate}")
+            print(f"Buffer size: {buffer_size}")
+            print(f"Porcupine frame length: {porcupine.frame_length}")
+
+            wake_word_event = threading.Event()
+
+            stream = pa.open(
+                rate=sample_rate,
+                channels=1,
+                format=pyaudio.paInt16,
+                input=True,
+                input_device_index=device_index,
+                frames_per_buffer=buffer_size,
+                stream_callback=audio_callback
+            )
+
+            print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
+            stream.start_stream()
+
+            # Wait for wake word
+            while not wake_word_event.is_set():
+                time.sleep(0.1)
+
+            # Clean up audio resources before speech recognition
+            stream.stop_stream()
+            stream.close()
+            pa.terminate()
+
+            # Start speech recognition
+            process_speech_recognition()
+
+        except KeyboardInterrupt:
+            print(Fore.YELLOW + "\nStopping wake word detection..." + Style.RESET_ALL)
+            break
+        except Exception as e:
+            print(Fore.RED + f"Error in main loop: {e}" + Style.RESET_ALL)
+            # Wait a bit before retrying
+            time.sleep(1)
+        finally:
+            try:
+                if 'stream' in locals() and stream is not None:
+                    stream.stop_stream()
+                    stream.close()
+                if 'pa' in locals() and pa is not None:
+                    pa.terminate()
+            except Exception as e:
+                print(Fore.RED + f"Error during cleanup: {e}" + Style.RESET_ALL)
+
+    # Final cleanup
+    try:
+        porcupine.delete()
     except Exception as e:
-        print(Fore.RED + f"Error in main loop: {e}" + Style.RESET_ALL)
-    finally:
-        # Cleanup
-        try:
-            if 'stream' in locals() and stream is not None:
-                stream.stop_stream()
-                stream.close()
-        except Exception as e:
-            print(Fore.RED + f"Error closing stream: {e}" + Style.RESET_ALL)
-        
-        try:
-            if 'pa' in locals() and pa is not None:
-                pa.terminate()
-        except Exception as e:
-            print(Fore.RED + f"Error terminating PyAudio: {e}" + Style.RESET_ALL)
-        
-        try:
-            if 'porcupine' in locals() and porcupine is not None:
-                porcupine.delete()
-        except Exception as e:
-            print(Fore.RED + f"Error deleting Porcupine: {e}" + Style.RESET_ALL)
+        print(Fore.RED + f"Error deleting Porcupine: {e}" + Style.RESET_ALL)
 
 if __name__ == "__main__":
     if not api_key:
