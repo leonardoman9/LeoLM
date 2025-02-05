@@ -155,7 +155,8 @@ def detect_wake_word():
         return (in_data, pyaudio.paContinue)
 
     stream = pa.open(
-        rate=porcupine.sample_rate,
+        
+        rate=4000,
         channels=1,
         format=pyaudio.paInt16,
         input=True,
