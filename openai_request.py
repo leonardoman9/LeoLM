@@ -177,10 +177,15 @@ def detect_wake_word():
     )
 
     pa = pyaudio.PyAudio()
+    wake_word_detected = False
     
-    def process_audio_input():
+    def process_audio_input(main_stream):
         """Handle audio input and speech recognition"""
         try:
+            # Stop the wake word detection stream
+            main_stream.stop_stream()
+            
+            # Create a new stream for speech recognition
             with sr.Microphone(device_index=0) as source:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
                 recognizer.adjust_for_ambient_noise(source, duration=1)
@@ -199,9 +204,17 @@ def detect_wake_word():
                     print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
         except Exception as e:
             print(Fore.RED + f"Error processing audio input: {e}" + Style.RESET_ALL)
+        finally:
+            # Restart the wake word detection stream
+            main_stream.start_stream()
 
     def callback(in_data, frame_count, time_info, status):
         try:
+            nonlocal wake_word_detected
+            
+            if wake_word_detected:
+                return (in_data, pyaudio.paContinue)
+                
             # Convert the input data to numpy array
             audio_data = np.frombuffer(in_data, dtype=np.int16)
             
@@ -230,7 +243,9 @@ def detect_wake_word():
             
             if result >= 0:
                 print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-                process_audio_input()
+                wake_word_detected = True
+                process_audio_input(stream)
+                wake_word_detected = False
                 
             return (in_data, pyaudio.paContinue)
         except Exception as e:
