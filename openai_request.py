@@ -130,7 +130,7 @@ def detect_wake_word():
     porcupine = pvporcupine.create(
         access_key=porcupine_access_key,
         keywords=["Cesso"],
-        model_path = "porcupine_params_it.pv"
+        model_path = "porcupine_params_it.pv",
         keyword_paths=["Cesso_it_raspberry-pi_v3_0_0.ppn"]
     )
     pa = pyaudio.PyAudio()
