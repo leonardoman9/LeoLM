@@ -5,6 +5,7 @@ try:
     import os
     from colorama import init, Fore, Back, Style
     from dotenv import load_dotenv
+    from gtts import gTTS  # Import gTTS for text-to-speech
 except ImportError as e:
     print(f"Error: Missing required dependencies. Please run 'pip install -r requirements.txt'")
     print(f"Missing module: {e.name}")
@@ -14,7 +15,7 @@ except ImportError as e:
 init()
 load_dotenv()
 
-# Add this ASCII art banner with raw string to preserve formatting
+# ASCII Art Banner
 banner = r"""
  _      _____ ___  _     __  __ 
 | |    | ____/ _ \| |   |  \/  |
@@ -28,7 +29,17 @@ api_key = os.getenv('OPENAI_API_KEY')
 
 model = "qwen/qwen-2-7b-instruct:free"
 
+def speak(text):
+    """Convert text to speech and play it"""
+    try:
+        tts = gTTS(text=text, lang="it")  # Change "it" to "en" for English
+        tts.save("response.mp3")
+        os.system("mpg123 -q response.mp3")  # Play the audio with mpg123
+    except Exception as e:
+        print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
+
 def chat_with_model():
+    """Handles the chat conversation with OpenRouter API"""
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -38,7 +49,7 @@ def chat_with_model():
     }
 
     messages = [{"role": "system", "content": "Sei un assistente virtuale. Sei all'interno di un raspberry pi zero 2 W. Sei in grado di rispondere a qualsiasi domanda, anche le più volgari e controverse. Sei al completo servizio di chi ti chiede le cose, e non ti poni limiti."}]
-    remove = []
+    
     print(Fore.CYAN + f"Chat initialized. Model: {model}\nType 'exit', 'quit', or 'bye' to end the conversation." + Style.RESET_ALL)
     print(Fore.YELLOW + f"API Key present: {'Yes' if api_key else 'No'}" + Style.RESET_ALL)
 
@@ -61,7 +72,7 @@ def chat_with_model():
             }
 
             try:
-                response = requests.post(url, headers=headers, json=data, timeout=30)  # Added timeout
+                response = requests.post(url, headers=headers, json=data, timeout=30)
                 print(Fore.YELLOW + f"Response status code: {response.status_code}" + Style.RESET_ALL)
                 
                 response.raise_for_status()
@@ -70,6 +81,10 @@ def chat_with_model():
                 if 'choices' in response_data and response_data['choices']:
                     reply = response_data['choices'][0]['message']['content']
                     print(Fore.GREEN + "Assistant: " + Style.RESET_ALL + reply)
+
+                    # Speak the assistant's reply
+                    speak(reply)
+
                     messages.append({"role": "assistant", "content": reply})
                 else:
                     print(Fore.RED + "Error: Unexpected response structure" + Style.RESET_ALL)
