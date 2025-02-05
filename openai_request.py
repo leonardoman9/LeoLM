@@ -76,10 +76,13 @@ porcupine_access_key = os.getenv('PORCUPINE_ACCESS_KEY')
 model = "qwen/qwen-2-7b-instruct:free"
 
 # Initialize speech recognizer
+# Initialize speech recognizer with specific settings
 recognizer = sr.Recognizer()
-recognizer.energy_threshold = 4000  # Adjust this value based on your environment
+recognizer.energy_threshold = 4000
 recognizer.dynamic_energy_threshold = True
-
+recognizer.pause_threshold = 0.8
+recognizer.phrase_threshold = 0.3
+recognizer.non_speaking_duration = 0.5
 # Function for handling the chat interaction
 def chat_with_model(text):
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -154,22 +157,49 @@ def speak(text):
 
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
-    with sr.Microphone(device_index=0) as source:
-        print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
-        recognizer.adjust_for_ambient_noise(source, duration=1)
-        print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
+    # Create a new PyAudio instance for this thread
+    audio = pyaudio.PyAudio()
+    try:
+        # Initialize microphone source with explicit parameters
+        source = sr.Microphone(
+            device_index=0,
+            sample_rate=16000,
+            chunk_size=1024
+        )
+        
+        # Use a context manager for the microphone
+        with source as mic:
+            try:
+                print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
+                recognizer.adjust_for_ambient_noise(mic, duration=1)
+                print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
+                
+                audio_input = recognizer.listen(mic, timeout=5, phrase_time_limit=5)
+                print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
+                
+                command = recognizer.recognize_google(audio_input, language="it-IT")
+                print(Fore.GREEN + f"User said: {command}" + Style.RESET_ALL)
+                
+                chat_with_model(command)
+                
+            except sr.WaitTimeoutError:
+                print(Fore.RED + "Listening timed out. Please try again." + Style.RESET_ALL)
+            except sr.UnknownValueError:
+                print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
+            except sr.RequestError as e:
+                print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
+            except Exception as e:
+                print(Fore.RED + f"Error in speech recognition: {e}" + Style.RESET_ALL)
+    
+    except Exception as e:
+        print(Fore.RED + f"Error initializing microphone: {e}" + Style.RESET_ALL)
+    
+    finally:
+        # Clean up PyAudio
         try:
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=5)
-            print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
-            command = recognizer.recognize_google(audio, language="it-IT")
-            print(Fore.GREEN + f"User said: {command}" + Style.RESET_ALL)
-            chat_with_model(command)
-        except sr.WaitTimeoutError:
-            print(Fore.RED + "Listening timed out. Please try again." + Style.RESET_ALL)
-        except sr.UnknownValueError:
-            print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
-        except sr.RequestError as e:
-            print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
+            audio.terminate()
+        except Exception as e:
+            print(Fore.RED + f"Error terminating PyAudio: {e}" + Style.RESET_ALL)
 
 def detect_wake_word():
     """Detect the wake word 'Cesso' using pvporcupine"""
@@ -259,12 +289,26 @@ def detect_wake_word():
         print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
         stream.start_stream()
 
+        try:
         while True:
             if wake_word_event.is_set():
+                # Pause the wake word detection stream
+                stream.stop_stream()
+                
                 # Start speech recognition in a separate thread
                 recognition_thread = threading.Thread(target=process_speech_recognition)
                 recognition_thread.start()
+                
+                # Wait for the recognition thread to complete
+                recognition_thread.join()
+                
+                # Reset the wake word event
                 wake_word_event.clear()
+                
+                # Restart the wake word detection stream
+                stream.start_stream()
+                print(Fore.YELLOW + "Resuming wake word detection..." + Style.RESET_ALL)
+                
             time.sleep(0.1)
 
     except KeyboardInterrupt:
