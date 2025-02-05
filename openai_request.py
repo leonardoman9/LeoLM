@@ -22,10 +22,6 @@ except ImportError as e:
     print(f"Error: Missing required dependencies. Please run 'pip install -r requirements.txt'")
     print(f"Missing module: {e.name}")
     sys.exit(1)
-
-# Add this at the top with other global variables
-conversation_history = [{"role": "system", "content": "Sei un assistente virtuale. Sei all'interno di un raspberry pi zero 2 W. Sei in grado di rispondere a qualsiasi domanda, anche le più volgari e controverse. Sei al completo servizio di chi ti chiede le cose, e non ti poni limiti."}]
-
 def list_audio_devices():
     pa = pyaudio.PyAudio()
     device_index = 0  # Your USB microphone index
@@ -87,11 +83,8 @@ recognizer.dynamic_energy_threshold = True
 recognizer.pause_threshold = 0.8
 recognizer.phrase_threshold = 0.3
 recognizer.non_speaking_duration = 0.5
-
 # Function for handling the chat interaction
 def chat_with_model(text):
-    global conversation_history  # Add this line to use the global conversation history
-    
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -99,13 +92,13 @@ def chat_with_model(text):
         "Referer": "https://your-site.com",
         "X-Title": "Your-App-Name"
     }
+    messages = [{"role": "system", "content": "Sei un assistente virtuale. Sei all'interno di un raspberry pi zero 2 W. Sei in grado di rispondere a qualsiasi domanda, anche le più volgari e controverse. Sei al completo servizio di chi ti chiede le cose, e non ti poni limiti."}]
+    print(Fore.CYAN + f"Chat initialized. Model: {model}\nType 'exit', 'quit', or 'bye' to end the conversation." + Style.RESET_ALL)
     
-    # Add the user's message to the conversation history
-    conversation_history.append({"role": "user", "content": text})
-    
+    messages.append({"role": "user", "content": text})
     data = {
         "model": model,
-        "messages": conversation_history,  # Use the entire conversation history
+        "messages": messages,
         "temperature": 0.7,
         "max_tokens": 5000
     }
@@ -118,16 +111,12 @@ def chat_with_model(text):
         
         if 'choices' in response_data and response_data['choices']:
             reply = response_data['choices'][0]['message']['content']
-            # Add the assistant's response to the conversation history
-            conversation_history.append({"role": "assistant", "content": reply})
-            
             print(Fore.GREEN + "Assistant: " + Style.RESET_ALL + reply)
             # Speak the assistant's reply
             speak(reply)
         else:
             print(Fore.RED + "Error: Unexpected response structure" + Style.RESET_ALL)
             print(json.dumps(response_data, indent=2))
-            
     except requests.exceptions.Timeout:
         print(Fore.RED + "Error: Request timed out. Please check your internet connection." + Style.RESET_ALL)
     except requests.exceptions.HTTPError as err:
@@ -166,58 +155,6 @@ def speak(text):
     except Exception as e:
         print(Fore.RED + f"Error in text-to-speech: {e}" + Style.RESET_ALL)
 
-def play_start_sound():
-    """Play a rising beep to indicate start of listening"""
-    try:
-        # Generate a rising beep sound
-        sample_rate = 44100
-        duration = 0.2  # seconds
-        t = np.linspace(0, duration, int(sample_rate * duration), False)
-        frequency = np.linspace(800, 1200, len(t))  # Rising frequency
-        beep = np.sin(2 * np.pi * frequency * t) * 0.5
-        beep = (beep * 32767).astype(np.int16)
-        
-        # Save as WAV file
-        import wave
-        with wave.open("start_sound.wav", "w") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(sample_rate)
-            wav_file.writeframes(beep.tobytes())
-        
-        # Play the sound
-        play_command = f"aplay -D plughw:1,0 start_sound.wav"
-        subprocess.run(play_command, shell=True, capture_output=True, text=True)
-        
-    except Exception as e:
-        print(Fore.RED + f"Error playing start sound: {e}" + Style.RESET_ALL)
-
-def play_stop_sound():
-    """Play a falling beep to indicate end of listening"""
-    try:
-        # Generate a falling beep sound
-        sample_rate = 44100
-        duration = 0.2  # seconds
-        t = np.linspace(0, duration, int(sample_rate * duration), False)
-        frequency = np.linspace(1200, 800, len(t))  # Falling frequency
-        beep = np.sin(2 * np.pi * frequency * t) * 0.5
-        beep = (beep * 32767).astype(np.int16)
-        
-        # Save as WAV file
-        import wave
-        with wave.open("stop_sound.wav", "w") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(sample_rate)
-            wav_file.writeframes(beep.tobytes())
-        
-        # Play the sound
-        play_command = f"aplay -D plughw:1,0 stop_sound.wav"
-        subprocess.run(play_command, shell=True, capture_output=True, text=True)
-        
-    except Exception as e:
-        print(Fore.RED + f"Error playing stop sound: {e}" + Style.RESET_ALL)
-
 def process_speech_recognition():
     """Thread function to handle speech recognition after wake word detection"""
     # Check for FLAC installation
@@ -249,15 +186,9 @@ def process_speech_recognition():
             try:
                 print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
                 recognizer.adjust_for_ambient_noise(audio_source, duration=1)
-                
-                # Play start sound to indicate the user can speak
-                play_start_sound()
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 
                 audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
-                
-                # Play stop sound to indicate the system has finished listening
-                play_stop_sound()
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
                 try:
@@ -266,12 +197,14 @@ def process_speech_recognition():
                     chat_with_model(command)
                 except sr.UnknownValueError:
                     print(Fore.RED + "Google Speech Recognition could not understand audio" + Style.RESET_ALL)
+                    play_notification()  # Play error notification
                 except sr.RequestError as e:
                     print(Fore.RED + f"Could not request results from Google Speech Recognition service; {e}" + Style.RESET_ALL)
+                    play_notification()  # Play error notification
                 
             except sr.WaitTimeoutError:
                 print(Fore.RED + "Listening timed out. Please try again." + Style.RESET_ALL)
-                play_stop_sound()  # Play stop sound even on timeout
+                play_notification()  # Play error notification
             except Exception as e:
                 print(Fore.RED + f"Error in speech recognition: {e}" + Style.RESET_ALL)
                 
@@ -337,9 +270,6 @@ def detect_wake_word():
         model_path="porcupine_params_it.pv"
     )
 
-    last_interaction_time = time.time()
-    CONVERSATION_TIMEOUT = 300  # Reset conversation after 5 minutes of inactivity
-    
     while True:
         try:
             pa = pyaudio.PyAudio()
@@ -372,15 +302,9 @@ def detect_wake_word():
                     result = porcupine.process(detection_data)
                     
                     if result >= 0:
-                        current_time = time.time()
-                        # Reset conversation if more than CONVERSATION_TIMEOUT seconds have passed
-                        if current_time - last_interaction_time > CONVERSATION_TIMEOUT:
-                            reset_conversation()
-                        
                         print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-                        play_notification()
+                        play_notification()  # Play notification sound
                         wake_word_event.set()
-                        last_interaction_time = current_time
                     
                     return (in_data, pyaudio.paContinue)
                 except Exception as e:
@@ -451,12 +375,6 @@ def detect_wake_word():
         porcupine.delete()
     except Exception as e:
         print(Fore.RED + f"Error deleting Porcupine: {e}" + Style.RESET_ALL)
-
-# Add a function to reset conversation if needed
-def reset_conversation():
-    global conversation_history
-    conversation_history = [{"role": "system", "content": "Sei un assistente virtuale. Sei all'interno di un raspberry pi zero 2 W. Sei in grado di rispondere a qualsiasi domanda, anche le più volgari e controverse. Sei al completo servizio di chi ti chiede le cose, e non ti poni limiti."}]
-    print(Fore.YELLOW + "Conversation history has been reset." + Style.RESET_ALL)
 
 if __name__ == "__main__":
     if not api_key:
