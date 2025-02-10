@@ -187,7 +187,10 @@ def process_speech_recognition():
                 #print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
                 #recognizer.adjust_for_ambient_noise(audio_source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
-                play_notification(frequency=1500)
+                play_notification(frequency=1046)
+                play_notification(frequency=1318)
+                play_notification(frequency=1567)
+                play_notification(frequency=1975)
                 audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
