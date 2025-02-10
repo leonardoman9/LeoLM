@@ -184,10 +184,10 @@ def process_speech_recognition():
         
         with source as audio_source:
             try:
-                print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
-                recognizer.adjust_for_ambient_noise(audio_source, duration=1)
+                #print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
+                #recognizer.adjust_for_ambient_noise(audio_source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
-                
+                play_notification(frequency=1500)
                 audio_input = recognizer.listen(audio_source, timeout=5, phrase_time_limit=5)
                 print(Fore.YELLOW + "Recognizing speech..." + Style.RESET_ALL)
                 
@@ -219,13 +219,10 @@ def process_speech_recognition():
         except:
             pass
 
-def play_notification():
+def play_notification(sample_rate=44100, duration=0.2, frequency = 1000):
     """Play a simple notification sound when wake word is detected"""
     try:
         # Generate a short beep sound
-        sample_rate = 44100
-        duration = 0.2  # seconds
-        frequency = 1000  # Hz
         t = np.linspace(0, duration, int(sample_rate * duration), False)
         beep = np.sin(2 * np.pi * frequency * t) * 0.5
         beep = (beep * 32767).astype(np.int16)
@@ -303,7 +300,7 @@ def detect_wake_word():
                     
                     if result >= 0:
                         print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
-                        play_notification()  # Play notification sound
+                        play_notification(frequency=300)  # Play notification sound
                         wake_word_event.set()
                     
                     return (in_data, pyaudio.paContinue)
