@@ -290,46 +290,32 @@ def find_audio_devices():
             print(f"  Input channels: {max_inputs}")
             print(f"  Output channels: {max_outputs}")
             
-            # Find USB PnP Sound Device (microphone)
-            if ('USB PnP Sound Device' in device_name or 'hw:2,0' in device_name) and max_inputs > 0:
-                input_device_index = i
-                print(Fore.GREEN + f"  Found input device: {device_name} (index: {i})" + Style.RESET_ALL)
+            # Device 1 is always the USB PnP Sound Device (microphone)
+            if i == 1:
+                if max_inputs > 0:
+                    input_device_index = i
+                    print(Fore.GREEN + f"  Found input device: {device_name} (index: {i})" + Style.RESET_ALL)
+                else:
+                    print(Fore.RED + f"  Warning: Device 1 has no input channels!" + Style.RESET_ALL)
             
-            # Find UACDemoV1.0 (speaker)
-            if ('UACDemoV1.0' in device_name or 'hw:1,0' in device_name) and max_outputs > 0:
-                output_device_index = i
-                print(Fore.GREEN + f"  Found output device: {device_name} (index: {i})" + Style.RESET_ALL)
+            # Device 0 is always the UACDemoV1.0 (speaker)
+            if i == 0:
+                if max_outputs > 0:
+                    output_device_index = i
+                    print(Fore.GREEN + f"  Found output device: {device_name} (index: {i})" + Style.RESET_ALL)
+                else:
+                    print(Fore.RED + f"  Warning: Device 0 has no output channels!" + Style.RESET_ALL)
     
     finally:
         pa.terminate()
     
     if input_device_index is None:
-        print(Fore.RED + "\nWarning: Could not find USB PnP Sound Device (microphone)" + Style.RESET_ALL)
-        # Try to find any device with input channels
-        try:
-            pa = pyaudio.PyAudio()
-            for i in range(pa.get_device_count()):
-                device_info = pa.get_device_info_by_index(i)
-                if device_info.get('maxInputChannels', 0) > 0:
-                    input_device_index = i
-                    print(Fore.YELLOW + f"Using alternative input device: {device_info.get('name')} (index: {i})" + Style.RESET_ALL)
-                    break
-        finally:
-            pa.terminate()
+        print(Fore.RED + "\nError: Could not use Device 1 (USB PnP Sound Device) for input" + Style.RESET_ALL)
+        return None, output_device_index
             
     if output_device_index is None:
-        print(Fore.RED + "\nWarning: Could not find UACDemoV1.0 (speaker)" + Style.RESET_ALL)
-        # Try to find any device with output channels
-        try:
-            pa = pyaudio.PyAudio()
-            for i in range(pa.get_device_count()):
-                device_info = pa.get_device_info_by_index(i)
-                if device_info.get('maxOutputChannels', 0) > 0:
-                    output_device_index = i
-                    print(Fore.YELLOW + f"Using alternative output device: {device_info.get('name')} (index: {i})" + Style.RESET_ALL)
-                    break
-        finally:
-            pa.terminate()
+        print(Fore.RED + "\nError: Could not use Device 0 (UACDemoV1.0) for output" + Style.RESET_ALL)
+        return input_device_index, None
     
     # Debug output
     if input_device_index is not None:
