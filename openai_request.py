@@ -222,28 +222,74 @@ def process_speech_recognition():
         except:
             pass
 
-def play_notification(sample_rate=44100, duration=0.2, frequency = 1000):
-    """Play a simple notification sound when wake word is detected"""
+def play_notification(frequency=440, duration=0.1):
+    """Play a notification sound using the correct output device."""
     try:
-        # Generate a short beep sound
-        t = np.linspace(0, duration, int(sample_rate * duration), False)
-        beep = np.sin(2 * np.pi * frequency * t) * 0.5
-        beep = (beep * 32767).astype(np.int16)
+        pa = pyaudio.PyAudio()
         
-        # Save as WAV file
-        import wave
-        with wave.open("notification.wav", "w") as wav_file:
-            wav_file.setnchannels(1)
-            wav_file.setsampwidth(2)
-            wav_file.setframerate(sample_rate)
-            wav_file.writeframes(beep.tobytes())
+        # Find the correct output device
+        _, output_device_index = find_audio_devices()
+        
+        if output_device_index is None:
+            print(Fore.RED + "Warning: Could not find output device for notification" + Style.RESET_ALL)
+            return
+            
+        # Get output device info
+        device_info = pa.get_device_info_by_index(output_device_index)
+        sample_rate = int(device_info['defaultSampleRate'])
+        
+        # Generate notification sound
+        samples = (np.sin(2 * np.pi * np.arange(sample_rate * duration) * frequency / sample_rate)).astype(np.float32)
+        
+        # Open stream with correct output device
+        stream = pa.open(format=pyaudio.paFloat32,
+                        channels=1,
+                        rate=sample_rate,
+                        output=True,
+                        output_device_index=output_device_index)
         
         # Play the sound
-        play_command = f"aplay -D plughw:1,0 notification.wav"
-        subprocess.run(play_command, shell=True, capture_output=True, text=True)
+        stream.write(samples.tobytes())
+        
+        # Clean up
+        stream.stop_stream()
+        stream.close()
+        pa.terminate()
         
     except Exception as e:
         print(Fore.RED + f"Error playing notification: {e}" + Style.RESET_ALL)
+
+def find_audio_devices():
+    """Find the correct audio input and output devices."""
+    pa = pyaudio.PyAudio()
+    input_device_index = None
+    output_device_index = None
+    
+    try:
+        # List all audio devices
+        for i in range(pa.get_device_count()):
+            device_info = pa.get_device_info_by_index(i)
+            device_name = device_info.get('name', '')
+            
+            # Find USB PnP Sound Device (microphone)
+            if 'USB PnP Sound Device' in device_name and device_info.get('maxInputChannels', 0) > 0:
+                input_device_index = i
+                print(f"Found input device: {device_name} (index: {i})")
+            
+            # Find UACDemoV1.0 (speaker)
+            if 'UACDemoV1.0' in device_name and device_info.get('maxOutputChannels', 0) > 0:
+                output_device_index = i
+                print(f"Found output device: {device_name} (index: {i})")
+    
+    finally:
+        pa.terminate()
+    
+    if input_device_index is None:
+        print(Fore.RED + "Warning: Could not find USB PnP Sound Device (microphone)" + Style.RESET_ALL)
+    if output_device_index is None:
+        print(Fore.RED + "Warning: Could not find UACDemoV1.0 (speaker)" + Style.RESET_ALL)
+    
+    return input_device_index, output_device_index
 
 def detect_wake_word():
     """Detect the wake word 'Cesso' using pvporcupine"""
@@ -272,22 +318,24 @@ def detect_wake_word():
 
     while True:
         try:
+            # Initialize PyAudio
             pa = pyaudio.PyAudio()
             
-            # List all available audio devices
-            print("\nAvailable audio devices:")
-            for i in range(pa.get_device_count()):
-                dev_info = pa.get_device_info_by_index(i)
-                print(f"Device {i}: {dev_info['name']}")
-
-            # Define audio callback before we use it
+            # Find the correct audio devices
+            input_device_index, output_device_index = find_audio_devices()
+            
+            if input_device_index is None:
+                print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
+                return
+            
+            # Define audio callback
             def audio_callback(in_data, frame_count, time_info, status):
                 try:
                     # Convert the input data to numpy array
                     audio_data = np.frombuffer(in_data, dtype=np.int16)
                     
-                    # Resample audio data from 44100 Hz to 16000 Hz
-                    resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / 44100))
+                    # Resample audio data from device sample rate to 16000 Hz
+                    resampled_data = scipy.signal.resample(audio_data, int(len(audio_data) * 16000 / sample_rate))
                     
                     # Ensure the resampled data matches Porcupine's frame length
                     if len(resampled_data) > porcupine.frame_length:
@@ -310,12 +358,10 @@ def detect_wake_word():
                 except Exception as e:
                     print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
                     return (in_data, pyaudio.paContinue)
-
-            # Use device index 0 for USB microphone
-            device_index = 0
             
-            device_info = pa.get_device_info_by_index(device_index)
-            print(f"\nUsing device {device_index}:")
+            # Get input device info
+            device_info = pa.get_device_info_by_index(input_device_index)
+            print(f"\nUsing input device {input_device_index}:")
             for key, value in device_info.items():
                 print(f"{key}: {value}")
 
@@ -333,7 +379,7 @@ def detect_wake_word():
                 channels=1,
                 format=pyaudio.paInt16,
                 input=True,
-                input_device_index=device_index,
+                input_device_index=input_device_index,
                 frames_per_buffer=buffer_size,
                 stream_callback=audio_callback
             )
