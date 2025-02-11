@@ -145,8 +145,8 @@ def speak(text):
             print(Fore.RED + "Error: Audio file was not created!" + Style.RESET_ALL)
             return
 
-        # Find the correct output device
-        _, output_device_index = find_audio_devices()
+        # Find the correct output device without verbose output
+        _, output_device_index = find_audio_devices(verbose=False)
         if output_device_index is None:
             print(Fore.RED + "Error: No suitable output device found" + Style.RESET_ALL)
             return
@@ -180,8 +180,8 @@ def process_speech_recognition():
     time.sleep(0.5)
     
     try:
-        # Find the correct input device
-        input_device_index, _ = find_audio_devices()
+        # Find the correct input device without verbose output
+        input_device_index, _ = find_audio_devices(verbose=False)
         if input_device_index is None:
             print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
             return
@@ -238,8 +238,8 @@ def play_notification(frequency=440, duration=0.1):
     try:
         pa = pyaudio.PyAudio()
         
-        # Find the correct output device
-        _, output_device_index = find_audio_devices()
+        # Find the correct output device without verbose output
+        _, output_device_index = find_audio_devices(verbose=False)
         if output_device_index is None:
             print(Fore.RED + "Error: No suitable output device found" + Style.RESET_ALL)
             return
@@ -269,14 +269,15 @@ def play_notification(frequency=440, duration=0.1):
     except Exception as e:
         print(Fore.RED + f"Error playing notification: {e}" + Style.RESET_ALL)
 
-def find_audio_devices():
+def find_audio_devices(verbose=True):
     """Find the correct audio input and output devices by name."""
     pa = pyaudio.PyAudio()
     input_device_index = None
     output_device_index = None
     
     try:
-        print("\nScanning audio devices:")
+        if verbose:
+            print("\nScanning audio devices:")
         # List all audio devices
         for i in range(pa.get_device_count()):
             device_info = pa.get_device_info_by_index(i)
@@ -284,55 +285,61 @@ def find_audio_devices():
             max_inputs = device_info.get('maxInputChannels', 0)
             max_outputs = device_info.get('maxOutputChannels', 0)
             
-            print(f"\nDevice {i}: {device_name}")
-            print(f"  Input channels: {max_inputs}")
-            print(f"  Output channels: {max_outputs}")
+            if verbose:
+                print(f"\nDevice {i}: {device_name}")
+                print(f"  Input channels: {max_inputs}")
+                print(f"  Output channels: {max_outputs}")
             
             # Find USB PnP Sound Device (microphone)
             if "USB PnP Sound Device" in device_name and max_inputs > 0:
                 input_device_index = i
-                print(Fore.GREEN + f"  Found input device: {device_name} (index: {i})" + Style.RESET_ALL)
+                if verbose:
+                    print(Fore.GREEN + f"  Found input device: {device_name} (index: {i})" + Style.RESET_ALL)
             
             # Find UACDemoV1.0 (speaker)
             if "UACDemoV1.0" in device_name and max_outputs > 0:
                 output_device_index = i
-                print(Fore.GREEN + f"  Found output device: {device_name} (index: {i})" + Style.RESET_ALL)
+                if verbose:
+                    print(Fore.GREEN + f"  Found output device: {device_name} (index: {i})" + Style.RESET_ALL)
     
     finally:
         pa.terminate()
     
     if input_device_index is None:
-        print(Fore.RED + "\nError: Could not find USB PnP Sound Device for input" + Style.RESET_ALL)
+        if verbose:
+            print(Fore.RED + "\nError: Could not find USB PnP Sound Device for input" + Style.RESET_ALL)
         return None, output_device_index
             
     if output_device_index is None:
-        print(Fore.RED + "\nError: Could not find UACDemoV1.0 for output" + Style.RESET_ALL)
+        if verbose:
+            print(Fore.RED + "\nError: Could not find UACDemoV1.0 for output" + Style.RESET_ALL)
         return input_device_index, None
     
-    # Debug output
-    if input_device_index is not None:
-        pa = pyaudio.PyAudio()
-        try:
-            device_info = pa.get_device_info_by_index(input_device_index)
-            print(Fore.CYAN + f"\nSelected input device details:")
-            print(f"  Name: {device_info.get('name')}")
-            print(f"  Index: {input_device_index}")
-            print(f"  Input channels: {device_info.get('maxInputChannels')}")
-            print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
-        finally:
-            pa.terminate()
-            
-    if output_device_index is not None:
-        pa = pyaudio.PyAudio()
-        try:
-            device_info = pa.get_device_info_by_index(output_device_index)
-            print(Fore.CYAN + f"\nSelected output device details:")
-            print(f"  Name: {device_info.get('name')}")
-            print(f"  Index: {output_device_index}")
-            print(f"  Output channels: {device_info.get('maxOutputChannels')}")
-            print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
-        finally:
-            pa.terminate()
+    # Debug output only during initial setup
+    if verbose:
+        if input_device_index is not None:
+            pa = pyaudio.PyAudio()
+            try:
+                device_info = pa.get_device_info_by_index(input_device_index)
+                print(Fore.CYAN + f"\nSelected input device details:")
+                print(f"  Name: {device_info.get('name')}")
+                print(f"  Index: {input_device_index}")
+                print(f"  Input channels: {device_info.get('maxInputChannels')}")
+                print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
+            finally:
+                pa.terminate()
+                
+        if output_device_index is not None:
+            pa = pyaudio.PyAudio()
+            try:
+                device_info = pa.get_device_info_by_index(output_device_index)
+                print(Fore.CYAN + f"\nSelected output device details:")
+                print(f"  Name: {device_info.get('name')}")
+                print(f"  Index: {output_device_index}")
+                print(f"  Output channels: {device_info.get('maxOutputChannels')}")
+                print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
+            finally:
+                pa.terminate()
     
     return input_device_index, output_device_index
 
@@ -361,13 +368,20 @@ def detect_wake_word():
         model_path="porcupine_params_it.pv"
     )
 
+    # Initial device setup with verbose output
+    print(Fore.YELLOW + "\nPerforming initial audio device setup..." + Style.RESET_ALL)
+    input_device_index, output_device_index = find_audio_devices(verbose=True)
+    if input_device_index is None:
+        print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
+        return
+
     while True:
         try:
             # Initialize PyAudio
             pa = pyaudio.PyAudio()
             
-            # Find both input and output devices
-            input_device_index, output_device_index = find_audio_devices()
+            # Find devices without verbose output during retries
+            input_device_index, output_device_index = find_audio_devices(verbose=False)
             if input_device_index is None:
                 print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
                 time.sleep(2)  # Wait before retrying
@@ -375,33 +389,8 @@ def detect_wake_word():
             
             # Get input device info
             input_device_info = pa.get_device_info_by_index(input_device_index)
-            print(Fore.YELLOW + f"\nUsing input device:" + Style.RESET_ALL)
-            print(f"  Name: {input_device_info.get('name')}")
-            print(f"  Input channels: {input_device_info.get('maxInputChannels')}")
-            print(f"  Sample rate: {input_device_info.get('defaultSampleRate')}")
-
-            # Get output device info
-            if output_device_index is not None:
-                output_device_info = pa.get_device_info_by_index(output_device_index)
-                print(Fore.YELLOW + f"\nUsing output device:" + Style.RESET_ALL)
-                print(f"  Name: {output_device_info.get('name')}")
-                print(f"  Output channels: {output_device_info.get('maxOutputChannels')}")
-                print(f"  Sample rate: {output_device_info.get('defaultSampleRate')}")
-
-            # Verify the input device has input channels
-            if input_device_info['maxInputChannels'] <= 0:
-                print(Fore.RED + f"Error: Selected input device has no input channels" + Style.RESET_ALL)
-                print(Fore.YELLOW + "Please ensure the USB microphone is properly connected" + Style.RESET_ALL)
-                time.sleep(2)  # Wait before retrying
-                continue
-
             sample_rate = int(input_device_info['defaultSampleRate'])
             buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
-
-            print(Fore.YELLOW + "\nAudio configuration:" + Style.RESET_ALL)
-            print(f"  Sample rate: {sample_rate} Hz")
-            print(f"  Buffer size: {buffer_size} frames")
-            print(f"  Porcupine frame length: {porcupine.frame_length} samples")
 
             wake_word_event = threading.Event()
 
@@ -447,7 +436,7 @@ def detect_wake_word():
                 stream_callback=audio_callback
             )
 
-            print(Fore.GREEN + "Starting to listen for wake word..." + Style.RESET_ALL)
+            print(Fore.GREEN + "Listening for wake word..." + Style.RESET_ALL)
             stream.start_stream()
 
             # Wait for wake word
