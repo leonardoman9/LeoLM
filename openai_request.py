@@ -145,11 +145,8 @@ def speak(text):
             print(Fore.RED + "Error: Audio file was not created!" + Style.RESET_ALL)
             return
 
-        # Use device 0 directly (UACDemoV1.0)
-        output_device_index = 0
-            
-        # Use the correct hardware device for playback
-        play_command = f"mpg123 -a plughw:1,0 response.mp3"  # Use hw:1,0 directly for UACDemoV1.0
+        # Use hw:1,0 directly for UACDemoV1.0 speaker
+        play_command = "mpg123 -a hw:1,0 response.mp3"
         result = subprocess.run(play_command, shell=True, capture_output=True, text=True)
         
         if result.returncode == 0:
@@ -232,13 +229,9 @@ def play_notification(frequency=440, duration=0.1):
     try:
         pa = pyaudio.PyAudio()
         
-        # Find the correct output device
-        _, output_device_index = find_audio_devices()
+        # Use device 0 directly (UACDemoV1.0)
+        output_device_index = 0
         
-        if output_device_index is None:
-            print(Fore.RED + "Warning: Could not find output device for notification" + Style.RESET_ALL)
-            return
-            
         # Get output device info
         device_info = pa.get_device_info_by_index(output_device_index)
         sample_rate = int(device_info['defaultSampleRate'])
@@ -372,13 +365,14 @@ def detect_wake_word():
             
             # Get input device info and verify it's suitable
             device_info = pa.get_device_info_by_index(input_device_index)
-            print(Fore.YELLOW + f"\nVerifying input device {input_device_index}:" + Style.RESET_ALL)
-            for key, value in device_info.items():
-                print(f"  {key}: {value}")
+            print(Fore.YELLOW + f"\nChecking USB PnP Sound Device (index: {input_device_index}):" + Style.RESET_ALL)
+            print(f"  Name: {device_info.get('name')}")
+            print(f"  Input channels: {device_info.get('maxInputChannels')}")
+            print(f"  Sample rate: {device_info.get('defaultSampleRate')}")
 
             # Verify the device has input channels
             if device_info['maxInputChannels'] <= 0:
-                print(Fore.RED + f"Error: Device {input_device_index} ({device_info['name']}) has no input channels" + Style.RESET_ALL)
+                print(Fore.RED + f"Error: USB PnP Sound Device has no input channels" + Style.RESET_ALL)
                 print(Fore.YELLOW + "Please ensure the USB microphone is properly connected" + Style.RESET_ALL)
                 time.sleep(2)  # Wait before retrying
                 continue
