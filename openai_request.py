@@ -366,28 +366,36 @@ def detect_wake_word():
             # Initialize PyAudio
             pa = pyaudio.PyAudio()
             
-            # Find the correct input device
-            input_device_index, _ = find_audio_devices()
+            # Find both input and output devices
+            input_device_index, output_device_index = find_audio_devices()
             if input_device_index is None:
                 print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
                 time.sleep(2)  # Wait before retrying
                 continue
             
-            # Get input device info and verify it's suitable
-            device_info = pa.get_device_info_by_index(input_device_index)
+            # Get input device info
+            input_device_info = pa.get_device_info_by_index(input_device_index)
             print(Fore.YELLOW + f"\nUsing input device:" + Style.RESET_ALL)
-            print(f"  Name: {device_info.get('name')}")
-            print(f"  Input channels: {device_info.get('maxInputChannels')}")
-            print(f"  Sample rate: {device_info.get('defaultSampleRate')}")
+            print(f"  Name: {input_device_info.get('name')}")
+            print(f"  Input channels: {input_device_info.get('maxInputChannels')}")
+            print(f"  Sample rate: {input_device_info.get('defaultSampleRate')}")
 
-            # Verify the device has input channels
-            if device_info['maxInputChannels'] <= 0:
-                print(Fore.RED + f"Error: Selected device has no input channels" + Style.RESET_ALL)
+            # Get output device info
+            if output_device_index is not None:
+                output_device_info = pa.get_device_info_by_index(output_device_index)
+                print(Fore.YELLOW + f"\nUsing output device:" + Style.RESET_ALL)
+                print(f"  Name: {output_device_info.get('name')}")
+                print(f"  Output channels: {output_device_info.get('maxOutputChannels')}")
+                print(f"  Sample rate: {output_device_info.get('defaultSampleRate')}")
+
+            # Verify the input device has input channels
+            if input_device_info['maxInputChannels'] <= 0:
+                print(Fore.RED + f"Error: Selected input device has no input channels" + Style.RESET_ALL)
                 print(Fore.YELLOW + "Please ensure the USB microphone is properly connected" + Style.RESET_ALL)
                 time.sleep(2)  # Wait before retrying
                 continue
 
-            sample_rate = int(device_info['defaultSampleRate'])
+            sample_rate = int(input_device_info['defaultSampleRate'])
             buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
 
             print(Fore.YELLOW + "\nAudio configuration:" + Style.RESET_ALL)
