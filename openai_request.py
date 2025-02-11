@@ -145,14 +145,11 @@ def speak(text):
             print(Fore.RED + "Error: Audio file was not created!" + Style.RESET_ALL)
             return
 
-        # Get the correct output device
-        _, output_device_index = find_audio_devices()
-        if output_device_index is None:
-            print(Fore.RED + "Error: Could not find output device for speech" + Style.RESET_ALL)
-            return
+        # Use device 0 directly (UACDemoV1.0)
+        output_device_index = 0
             
         # Use the correct hardware device for playback
-        play_command = f"mpg123 -a plughw:{output_device_index},0 response.mp3"
+        play_command = f"mpg123 -a plughw:1,0 response.mp3"  # Use hw:1,0 directly for UACDemoV1.0
         result = subprocess.run(play_command, shell=True, capture_output=True, text=True)
         
         if result.returncode == 0:
@@ -180,16 +177,12 @@ def process_speech_recognition():
     time.sleep(0.5)
     
     try:
-        # Get the correct input device index
-        input_device_index, _ = find_audio_devices()
+        # Use device 1 directly (USB PnP Sound Device)
+        input_device_index = 1
         
-        if input_device_index is None:
-            print(Fore.RED + "Error: Could not find input device for speech recognition" + Style.RESET_ALL)
-            return
-            
         # Initialize microphone source with the correct input device
         source = sr.Microphone(
-            device_index=input_device_index,  # Use the correct input device
+            device_index=input_device_index,  # Use device 1 (USB PnP Sound Device)
             sample_rate=48000,  # Use the default sample rate of the device
             chunk_size=1024
         )
@@ -374,13 +367,8 @@ def detect_wake_word():
             # Initialize PyAudio
             pa = pyaudio.PyAudio()
             
-            # Find the correct audio devices
-            input_device_index, _ = find_audio_devices()
-            
-            if input_device_index is None:
-                print(Fore.RED + "Error: No suitable input device found" + Style.RESET_ALL)
-                time.sleep(1)  # Wait before retrying
-                continue
+            # Use device 1 directly (USB PnP Sound Device)
+            input_device_index = 1
             
             # Get input device info and verify it's suitable
             device_info = pa.get_device_info_by_index(input_device_index)
@@ -390,13 +378,10 @@ def detect_wake_word():
 
             # Verify the device has input channels
             if device_info['maxInputChannels'] <= 0:
-                print(Fore.RED + f"Error: Selected device {input_device_index} has no input channels" + Style.RESET_ALL)
-                time.sleep(1)  # Wait before retrying
+                print(Fore.RED + f"Error: Device {input_device_index} ({device_info['name']}) has no input channels" + Style.RESET_ALL)
+                print(Fore.YELLOW + "Please ensure the USB microphone is properly connected" + Style.RESET_ALL)
+                time.sleep(2)  # Wait before retrying
                 continue
-
-            # Verify it's the correct device
-            if not ('USB PnP Sound Device' in device_info['name'] or 'hw:2,0' in device_info['name']):
-                print(Fore.RED + f"Warning: Selected device might not be the intended microphone" + Style.RESET_ALL)
 
             sample_rate = int(device_info['defaultSampleRate'])
             buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
@@ -471,8 +456,8 @@ def detect_wake_word():
             break
         except Exception as e:
             print(Fore.RED + f"Error in main loop: {e}" + Style.RESET_ALL)
-            # Wait a bit before retrying
-            time.sleep(1)
+            print(Fore.YELLOW + "Please ensure the USB microphone is properly connected" + Style.RESET_ALL)
+            time.sleep(2)  # Wait before retrying
         finally:
             try:
                 if 'stream' in locals() and stream is not None:
