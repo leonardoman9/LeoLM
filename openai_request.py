@@ -145,7 +145,14 @@ def speak(text):
             print(Fore.RED + "Error: Audio file was not created!" + Style.RESET_ALL)
             return
 
-        play_command = f"mpg123 -a plughw:1,0 response.mp3"
+        # Get the correct output device
+        _, output_device_index = find_audio_devices()
+        if output_device_index is None:
+            print(Fore.RED + "Error: Could not find output device for speech" + Style.RESET_ALL)
+            return
+            
+        # Use the correct hardware device for playback
+        play_command = f"mpg123 -a plughw:{output_device_index},0 response.mp3"
         result = subprocess.run(play_command, shell=True, capture_output=True, text=True)
         
         if result.returncode == 0:
@@ -173,10 +180,17 @@ def process_speech_recognition():
     time.sleep(0.5)
     
     try:
-        # Initialize microphone source with the USB microphone
+        # Get the correct input device index
+        input_device_index, _ = find_audio_devices()
+        
+        if input_device_index is None:
+            print(Fore.RED + "Error: Could not find input device for speech recognition" + Style.RESET_ALL)
+            return
+            
+        # Initialize microphone source with the correct input device
         source = sr.Microphone(
-            device_index=0,  # Use index 0 for USB microphone
-            sample_rate=44100,  # Match the sample rate used by wake word detection
+            device_index=input_device_index,  # Use the correct input device
+            sample_rate=48000,  # Use the default sample rate of the device
             chunk_size=1024
         )
         
@@ -184,8 +198,6 @@ def process_speech_recognition():
         
         with source as audio_source:
             try:
-                #print(Fore.YELLOW + "Adjusting for ambient noise..." + Style.RESET_ALL)
-                #recognizer.adjust_for_ambient_noise(audio_source, duration=1)
                 print(Fore.YELLOW + "Say something..." + Style.RESET_ALL)
                 play_notification(frequency=1046)
                 play_notification(frequency=1318)
