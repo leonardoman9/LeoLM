@@ -291,12 +291,12 @@ def find_audio_devices():
             print(f"  Output channels: {max_outputs}")
             
             # Find USB PnP Sound Device (microphone)
-            if 'USB PnP Sound Device' in device_name and max_inputs > 0:
+            if ('USB PnP Sound Device' in device_name or 'hw:2,0' in device_name) and max_inputs > 0:
                 input_device_index = i
                 print(Fore.GREEN + f"  Found input device: {device_name} (index: {i})" + Style.RESET_ALL)
             
             # Find UACDemoV1.0 (speaker)
-            if 'UACDemoV1.0' in device_name and max_outputs > 0:
+            if ('UACDemoV1.0' in device_name or 'hw:1,0' in device_name) and max_outputs > 0:
                 output_device_index = i
                 print(Fore.GREEN + f"  Found output device: {device_name} (index: {i})" + Style.RESET_ALL)
     
@@ -331,10 +331,35 @@ def find_audio_devices():
         finally:
             pa.terminate()
     
+    # Debug output
+    if input_device_index is not None:
+        pa = pyaudio.PyAudio()
+        try:
+            device_info = pa.get_device_info_by_index(input_device_index)
+            print(Fore.CYAN + f"\nSelected input device details:")
+            print(f"  Name: {device_info.get('name')}")
+            print(f"  Index: {input_device_index}")
+            print(f"  Input channels: {device_info.get('maxInputChannels')}")
+            print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
+        finally:
+            pa.terminate()
+            
+    if output_device_index is not None:
+        pa = pyaudio.PyAudio()
+        try:
+            device_info = pa.get_device_info_by_index(output_device_index)
+            print(Fore.CYAN + f"\nSelected output device details:")
+            print(f"  Name: {device_info.get('name')}")
+            print(f"  Index: {output_device_index}")
+            print(f"  Output channels: {device_info.get('maxOutputChannels')}")
+            print(f"  Sample rate: {device_info.get('defaultSampleRate')}" + Style.RESET_ALL)
+        finally:
+            pa.terminate()
+    
     return input_device_index, output_device_index
 
 def detect_wake_word():
-    """Detect the wake word 'Cesso' using pvporcupine"""
+    """Detect the wake word using pvporcupine"""
     if not porcupine_access_key:
         print(Fore.RED + "Error: Missing Porcupine access key. Please set PORCUPINE_ACCESS_KEY in your .env file." + Style.RESET_ALL)
         sys.exit(1)
@@ -371,11 +396,11 @@ def detect_wake_word():
                 time.sleep(1)  # Wait before retrying
                 continue
             
-            # Get input device info
+            # Get input device info and verify it's suitable
             device_info = pa.get_device_info_by_index(input_device_index)
-            print(f"\nUsing input device {input_device_index}:")
+            print(Fore.YELLOW + f"\nVerifying input device {input_device_index}:" + Style.RESET_ALL)
             for key, value in device_info.items():
-                print(f"{key}: {value}")
+                print(f"  {key}: {value}")
 
             # Verify the device has input channels
             if device_info['maxInputChannels'] <= 0:
@@ -383,12 +408,19 @@ def detect_wake_word():
                 time.sleep(1)  # Wait before retrying
                 continue
 
+            # Verify it's the correct device
+            if not ('USB PnP Sound Device' in device_info['name'] or 'hw:2,0' in device_info['name']):
+                print(Fore.RED + f"Warning: Selected device might not be the intended microphone" + Style.RESET_ALL)
+
             sample_rate = int(device_info['defaultSampleRate'])
             buffer_size = int(porcupine.frame_length * (sample_rate / 16000))
 
-            print(f"Using sample rate: {sample_rate}")
-            print(f"Buffer size: {buffer_size}")
-            print(f"Porcupine frame length: {porcupine.frame_length}")
+            print(Fore.YELLOW + "\nAudio configuration:" + Style.RESET_ALL)
+            print(f"  Sample rate: {sample_rate} Hz")
+            print(f"  Buffer size: {buffer_size} frames")
+            print(f"  Porcupine frame length: {porcupine.frame_length} samples")
+
+            wake_word_event = threading.Event()
 
             # Define audio callback
             def audio_callback(in_data, frame_count, time_info, status):
@@ -412,17 +444,16 @@ def detect_wake_word():
                     result = porcupine.process(detection_data)
                     
                     if result >= 0:
-                        print(Fore.GREEN + "Wake word detected! Listening for command..." + Style.RESET_ALL)
+                        print(Fore.GREEN + "\nWake word detected! Listening for command..." + Style.RESET_ALL)
                         play_notification(frequency=300)  # Play notification sound
                         wake_word_event.set()
                     
                     return (in_data, pyaudio.paContinue)
                 except Exception as e:
-                    print(Fore.RED + f"Error in audio callback: {e}" + Style.RESET_ALL)
+                    print(Fore.RED + f"\nError in audio callback: {e}" + Style.RESET_ALL)
                     return (in_data, pyaudio.paContinue)
 
-            wake_word_event = threading.Event()
-
+            print(Fore.YELLOW + "\nInitializing audio stream..." + Style.RESET_ALL)
             stream = pa.open(
                 rate=sample_rate,
                 channels=1,
@@ -433,7 +464,7 @@ def detect_wake_word():
                 stream_callback=audio_callback
             )
 
-            print(Fore.YELLOW + "Starting to listen for wake word..." + Style.RESET_ALL)
+            print(Fore.GREEN + "Starting to listen for wake word..." + Style.RESET_ALL)
             stream.start_stream()
 
             # Wait for wake word
@@ -441,6 +472,7 @@ def detect_wake_word():
                 time.sleep(0.1)
 
             # Clean up audio resources before speech recognition
+            print(Fore.YELLOW + "\nStopping wake word detection..." + Style.RESET_ALL)
             stream.stop_stream()
             stream.close()
             pa.terminate()
