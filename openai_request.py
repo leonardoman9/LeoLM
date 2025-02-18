@@ -73,7 +73,7 @@ print(Fore.CYAN + banner + Style.RESET_ALL)
 
 api_key = os.getenv('OPENAI_API_KEY')
 porcupine_access_key = os.getenv('PORCUPINE_ACCESS_KEY')
-model = "qwen/qwen2.5-vl-72b-instruct:free"
+model = "google/gemini-2.0-flash-thinking-exp:free"
 
 # Initialize speech recognizer
 # Initialize speech recognizer with specific settings
