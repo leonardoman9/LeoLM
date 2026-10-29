@@ -1,14 +1,5 @@
-import subprocess
-import sys
+"""Packaging compatibility shim; installation is performed explicitly by the documented workflow."""
 
-def install_dependencies():
-    print("Installing required dependencies...")
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-        print("Dependencies installed successfully!")
-    except subprocess.CalledProcessError as e:
-        print(f"Error installing dependencies: {e}")
-        sys.exit(1)
+from setuptools import find_packages, setup
 
-if __name__ == "__main__":
-    install_dependencies() 
+setup(name="leolm", version="0.1.0", package_dir={"": "src"}, packages=find_packages("src"))

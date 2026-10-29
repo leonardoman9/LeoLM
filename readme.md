@@ -1,134 +1,87 @@
-# Raspberry Pi AI Chat Assistant
+# LeoLM — Raspberry Pi voice assistant
 
-A command-line AI chat assistant designed to run on Raspberry Pi Zero 2 W, using OpenRouter API for AI model access. The assistant provides colorful terminal output for better user experience.
+LeoLM è un assistente vocale per Raspberry Pi Zero 2 W. Il flusso principale è wake word, comando
+vocale in italiano, richiesta al modello configurato e risposta vocale.
 
-## Features
+## Caratteristiche
 
-- Interactive command-line interface
-- Colored text output (blue for user input, green for AI responses, red for errors)
-- Secure API key management using environment variables
-- Robust error handling
-- Easy dependency management
+- Wake word e riconoscimento vocale.
+- Modello, provider, lingua e dispositivi configurabili.
+- Contesto conversazionale temporaneo di 10 minuti.
+- Retry di rete limitati e cleanup delle risorse audio.
+- Suite automatica senza hardware e suite hardware opt-in.
 
-## Prerequisites
+## Installazione
 
-- Raspberry Pi Zero 2 W
-- Raspbian OS installed
-- Internet connection
-- Python 3.7 or higher
+Installare prima i prerequisiti di sistema descritti in
+[`docs/system-dependencies.md`](docs/system-dependencies.md), poi creare l'ambiente Python:
 
-## Installation
-
-1. Update your Raspberry Pi system:s
 ```bash
-sudo apt-get update
-sudo apt-get upgrade
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements-dev.txt
 ```
 
-2. Install required system packages:
+Esportare le variabili indicate in [`docs/configuration.md`](docs/configuration.md) nel processo di
+avvio. Non salvare credenziali reali nel repository.
+
+## Avvio
+
 ```bash
-sudo apt-get install -y python3-pip
+python openai_request.py
 ```
 
-3. Create a project directory and navigate to it:
+Pronunciare la wake word configurata e poi il comando in italiano. Il testo della conversazione resta
+in memoria per 10 minuti dall'ultima interazione valida; dopo viene eliminato.
+
+## Configurazione
+
+Le variabili supportate sono definite in [`docs/configuration.md`](docs/configuration.md) e nell'esempio
+[`examples/.env.example`](examples/.env.example). Per il deployment PC→Raspberry consultare
+[`docs/deployment.md`](docs/deployment.md). Sono configurabili modello, endpoint, lingua, wake word,
+asset, input, output, timeout, retry e durata del contesto.
+
+## Privacy e servizi online
+
+Consultare [`docs/privacy.md`](docs/privacy.md). Il riconoscimento, il modello e la sintesi possono
+inviare dati ai servizi online configurati e dipendono dalla connettività e dalle loro policy.
+
+## Test
+
+La suite automatica non richiede dispositivi o rete:
+
 ```bash
-mkdir ai_assistant
-cd ai_assistant
+pytest -q
 ```
 
-4. Create the following files in your project directory:
-   - `openai_request.py` (main script)
-   - `requirements.txt` (dependencies)
-   - `setup.py` (installation script)
-   - `.env` (API key configuration)
-   - `.gitignore` (if using git)
+I test hardware sono opt-in:
 
-5. Set up your API key:
 ```bash
-# Create and edit the .env file
-nano .env
-
-# Add your API key to the file:
-OPENAI_API_KEY=your-api-key-here
+pytest -m hardware tests/hardware -q
 ```
 
-6. Install Python dependencies:
-```bash
-python3 setup.py
-```
-
-## Running the Assistant
-
-Start the chat assistant:
-```bash
-python3 openai_request.py
-```
-
-## Usage Instructions
-
-- Type your message and press Enter to chat with the AI
-- Messages are color-coded:
-  - Blue: Your input
-  - Green: AI responses
-  - Red: Error messages
-- To exit the chat, type any of these commands:
-  - 'exit'
-  - 'quit'
-  - 'bye'
-
-## Project Structure
-```
-ai_assistant/
-├── openai_request.py    # Main application file
-├── requirements.txt     # Python dependencies
-├── setup.py            # Installation script
-├── .env                # Environment variables (API key)
-└── .gitignore         # Git ignore rules
-```
+Dipendenze e prerequisiti sono elencati in `requirements.txt`, `requirements-dev.txt` e
+`docs/system-dependencies.md`.
 
 ## Troubleshooting
 
-### Common Issues and Solutions
+- Se manca una chiave, verificare il nome della variabile senza inserire il valore nei log.
+- Se manca un asset wake word, verificare `LEOLM_WAKE_WORD_PATH` e `LEOLM_WAKE_MODEL_PATH`.
+- Se un dispositivo audio non viene trovato, usare un selettore configurabile e controllare i test
+  hardware opt-in.
+- Se il servizio remoto non risponde, LeoLM esegue al massimo tre tentativi e torna all'ascolto.
 
-1. **Missing Dependencies**
-   ```bash
-   python3 setup.py
-   ```
+## Validazione documentale
 
-2. **API Key Not Found**
-   - Check if your .env file exists
-   - Verify the API key is correctly formatted in the .env file
-   - Make sure there are no spaces or quotes around the API key
+Prima di una release eseguire il controllo offline e la checklist:
 
-3. **Permission Issues**
-   ```bash
-   sudo chown -R pi:pi .
-   ```
+```bash
+python scripts/check_docs.py --root .
+pytest tests/documentation -q
+```
 
-4. **Network Issues**
-   - Check your internet connection
-   - Verify your Raspberry Pi is connected to the network
-   ```bash
-   ping 8.8.8.8
-   ```
+Consultare [`docs/release-checklist.md`](docs/release-checklist.md) per la verifica completa.
 
-## Security Notes
+## Licenza
 
-- Keep your .env file secure and never share it
-- Don't commit the .env file to version control
-- Regularly update your dependencies for security patches
-
-## Dependencies
-
-The project requires the following Python packages (installed automatically via setup.py):
-- requests>=2.31.0
-- colorama>=0.4.6
-- python-dotenv>=1.0.0
-
-## Support
-
-For issues and questions, please open an issue in the project repository or contact the maintainer.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+Il progetto è distribuito secondo la licenza indicata in `LICENSE.txt`.

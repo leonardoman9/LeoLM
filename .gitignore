@@ -4,3 +4,12 @@ __pycache__/
 .DS_Store 
 prova.py
 response.mp3
+.venv/
+venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+coverage.xml
+deploy/profiles/*.env
+!deploy/profiles/example.env
