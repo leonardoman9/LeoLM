@@ -44,7 +44,16 @@ def stage_payload(profile: DeviceProfile, destination: Path) -> Path:
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".venv", ".git"))
         elif source.is_file():
             shutil.copy2(source, app / name)
-    (app / ".env").write_text(runtime_env(profile), encoding="utf-8")
+    deployed_values = dict(profile.values)
+    for key in ("LEOLM_WAKE_WORD_PATH", "LEOLM_WAKE_MODEL_PATH"):
+        configured = Path(profile.values[key])
+        source_asset = configured if configured.is_absolute() else source_root / configured
+        if source_asset.is_file():
+            target_asset = app / source_asset.name
+            shutil.copy2(source_asset, target_asset)
+            deployed_values[key] = source_asset.name
+    deployed_profile = DeviceProfile(deployed_values, profile.source)
+    (app / ".env").write_text(runtime_env(deployed_profile), encoding="utf-8")
     (app / ".env").chmod(0o600)
     deploy = app / "deploy"
     deploy.mkdir(exist_ok=True)
