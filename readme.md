@@ -1,20 +1,22 @@
 # LeoLM — Raspberry Pi voice assistant
 
-LeoLM è un assistente vocale per Raspberry Pi Zero 2 W. Il flusso principale è wake word, comando
-vocale in italiano, richiesta al modello configurato e risposta vocale.
+LeoLM is a voice assistant for Raspberry Pi Zero 2 W. Its main flow is wake word detection, an
+Italian voice command, a request to the configured model, and a spoken response.
 
-## Caratteristiche
+## Features
 
-- Wake word e riconoscimento vocale.
-- Modello, provider, lingua e dispositivi configurabili.
-- Contesto conversazionale temporaneo di 10 minuti.
-- Retry di rete limitati e cleanup delle risorse audio.
-- Suite automatica senza hardware e suite hardware opt-in.
+- Wake word detection and speech recognition.
+- Configurable model, provider, language, and audio devices.
+- Temporary conversation context retained for 10 minutes after the last valid interaction.
+- Limited network retries and audio-resource cleanup.
+- Automatic tests without hardware and opt-in hardware tests.
+- Automated PC-to-Raspberry deployment with SSH or offline image staging.
 
-## Installazione
+## Installation
 
-Installare prima i prerequisiti di sistema descritti in
-[`docs/system-dependencies.md`](docs/system-dependencies.md), poi creare l'ambiente Python:
+For the easiest Raspberry Pi deployment, see [`docs/deployment.md`](docs/deployment.md). For manual
+installation, first install the system prerequisites described in
+[`docs/system-dependencies.md`](docs/system-dependencies.md), then create the Python environment:
 
 ```bash
 python3.11 -m venv .venv
@@ -22,66 +24,66 @@ python3.11 -m venv .venv
 python -m pip install -r requirements-dev.txt
 ```
 
-Esportare le variabili indicate in [`docs/configuration.md`](docs/configuration.md) nel processo di
-avvio. Non salvare credenziali reali nel repository.
+Configure the variables listed in [`docs/configuration.md`](docs/configuration.md). Never commit
+real credentials to the repository.
 
-## Avvio
+## Running
 
 ```bash
 python openai_request.py
 ```
 
-Pronunciare la wake word configurata e poi il comando in italiano. Il testo della conversazione resta
-in memoria per 10 minuti dall'ultima interazione valida; dopo viene eliminato.
+Say the configured wake word and then speak the command in Italian. Conversation text remains in
+memory for 10 minutes after the last valid interaction and is then deleted.
 
-## Configurazione
+## Configuration
 
-Le variabili supportate sono definite in [`docs/configuration.md`](docs/configuration.md) e nell'esempio
-[`examples/.env.example`](examples/.env.example). Per il deployment PC→Raspberry consultare
-[`docs/deployment.md`](docs/deployment.md). Sono configurabili modello, endpoint, lingua, wake word,
-asset, input, output, timeout, retry e durata del contesto.
+Supported variables are defined in [`docs/configuration.md`](docs/configuration.md) and in
+[`examples/.env.example`](examples/.env.example). For PC-to-Raspberry deployment, see
+[`docs/deployment.md`](docs/deployment.md). The model, endpoint, language, wake word, assets, audio
+input/output selectors, timeout, retry policy, and context lifetime are configurable.
 
-## Privacy e servizi online
+## Privacy and online services
 
-Consultare [`docs/privacy.md`](docs/privacy.md). Il riconoscimento, il modello e la sintesi possono
-inviare dati ai servizi online configurati e dipendono dalla connettività e dalle loro policy.
+See [`docs/privacy.md`](docs/privacy.md). Speech recognition, the language model, text-to-speech,
+and wake word providers may send data to configured online services and depend on their policies
+and network availability.
 
-## Test
+## Tests
 
-La suite automatica non richiede dispositivi o rete:
+The automatic suite does not require devices or network access:
 
 ```bash
 pytest -q
 ```
 
-I test hardware sono opt-in:
+Hardware tests are opt-in:
 
 ```bash
 pytest -m hardware tests/hardware -q
 ```
 
-Dipendenze e prerequisiti sono elencati in `requirements.txt`, `requirements-dev.txt` e
-`docs/system-dependencies.md`.
+Dependencies and system prerequisites are listed in `requirements.txt`, `requirements-dev.txt`,
+and [`docs/system-dependencies.md`](docs/system-dependencies.md).
 
 ## Troubleshooting
 
-- Se manca una chiave, verificare il nome della variabile senza inserire il valore nei log.
-- Se manca un asset wake word, verificare `LEOLM_WAKE_WORD_PATH` e `LEOLM_WAKE_MODEL_PATH`.
-- Se un dispositivo audio non viene trovato, usare un selettore configurabile e controllare i test
-  hardware opt-in.
-- Se il servizio remoto non risponde, LeoLM esegue al massimo tre tentativi e torna all'ascolto.
+- If a key is missing, check the variable name without putting its value in logs.
+- If a wake word asset is missing, check `LEOLM_WAKE_WORD_PATH` and `LEOLM_WAKE_MODEL_PATH`.
+- If an audio device cannot be found, use a configurable selector and run the opt-in hardware tests.
+- If a remote service does not respond, LeoLM performs at most the configured retries and returns to listening.
 
-## Validazione documentale
+## Documentation validation
 
-Prima di una release eseguire il controllo offline e la checklist:
+Before a release, run the offline validator and checklist:
 
 ```bash
 python scripts/check_docs.py --root .
 pytest tests/documentation -q
 ```
 
-Consultare [`docs/release-checklist.md`](docs/release-checklist.md) per la verifica completa.
+See [`docs/release-checklist.md`](docs/release-checklist.md) for the complete release verification.
 
-## Licenza
+## License
 
-Il progetto è distribuito secondo la licenza indicata in `LICENSE.txt`.
+The project is distributed under the license described in `LICENSE.txt`.

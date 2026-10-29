@@ -1,9 +1,18 @@
-# Privacy e servizi online
+# Privacy and online services
 
-LeoLM mantiene in memoria il testo della conversazione corrente per fornire contesto alle interazioni successive. Ogni interazione valida resetta il timer; dopo 600 secondi di inattività il contesto viene cancellato. Audio e risposte TTS sono temporanei e non viene salvato uno storico locale persistente.
+LeoLM keeps the current conversation text in memory to provide context for subsequent interactions.
+Each valid interaction resets the timer; after 600 seconds of inactivity, the context is deleted.
+Audio and TTS responses are temporary, and no persistent local history is stored.
 
-Il testo e il contesto possono essere inviati ai servizi configurati per riconoscimento vocale, modello conversazionale, sintesi vocale e wake word, se il provider lo richiede. Timeout e retry sono limitati; dopo l'ultimo errore il sistema torna all'ascolto. La retention dei provider esterni dipende dalle loro policy e non è controllata da LeoLM.
+Text and context may be sent to configured speech recognition, conversational model, text-to-speech,
+and wake word services when required by the provider. Network retry attempts and timeouts are
+limited; after the
+last error, the system returns to listening. Retention by external providers depends on their
+policies and is not controlled by LeoLM.
 
-API key, token, password Wi-Fi e profili reali devono restare fuori dal repository e non devono comparire in log, output, test o template pubblici. Durante un deployment SSH può esistere una copia temporanea sul target, che viene rimossa al termine; i keyfile Wi-Fi sono protetti con permessi restrittivi.
+API keys, tokens, Wi-Fi passwords, and real profiles must remain outside the repository and must not
+appear in logs, output, tests, or public templates. During SSH deployment, a temporary copy may
+exist on the target and is removed at the end; Wi-Fi keyfiles use restrictive permissions.
 
-Il deployment non invia audio o trascrizioni: installa solo configurazione e codice. Il runtime continua invece a inviare audio/testo ai provider configurati. MCP non viene installato né esposto.
+Deployment does not send audio or transcripts; it transfers configuration and code only. The runtime
+does send audio/text to configured providers. MCP is neither installed nor exposed.

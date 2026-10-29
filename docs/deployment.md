@@ -1,36 +1,35 @@
-# Deployment PC → Raspberry
+# PC → Raspberry deployment
 
-Il deployment è pensato per essere eseguito dal PC. Dopo il clone, crea una copia privata di
-`deploy/profiles/example.env`, sostituisci i placeholder, verifica il profilo e usa un solo comando
-per il metodo scelto. Il profilo sorgente resta sul PC; l'archivio temporaneo viene eliminato anche
-quando un passaggio fallisce.
-
-```bash
-python scripts/leolm-deploy.py validate --profile /percorso/leolm-soggiorno.env
-python scripts/leolm-deploy.py dry-run --profile /percorso/leolm-soggiorno.env --json
-python scripts/leolm-deploy.py deploy-ssh --profile /percorso/leolm-soggiorno.env --host leolm-soggiorno --user pi
-python scripts/leolm-deploy.py verify --profile /percorso/leolm-soggiorno.env --target leolm-soggiorno
-```
-
-L'accesso SSH deve essere già configurato con una chiave e l'account deve poter eseguire le
-operazioni amministrative senza prompt interattivi. Il comando controlla Python, systemd,
-NetworkManager e i privilegi prima di installare. Copia il codice e i file generati, crea il virtual
-environment sull'architettura del Raspberry, installa le dipendenze, configura Wi-Fi e abilita
-`leolm.service` all'avvio. Non vengono copiati virtual environment creati sul PC.
-
-Per un'immagine o filesystem montato:
+Run deployment from the PC. After cloning, create a private copy of `deploy/profiles/example.env`,
+replace the placeholders, validate the profile, and use one command for the selected transport.
+The source profile remains on the PC; temporary archives are removed even when a step fails.
 
 ```bash
-python scripts/leolm-deploy.py provision-offline --profile /percorso/leolm-soggiorno.env --root /mnt/leolm-root
-python scripts/leolm-deploy.py verify --profile /percorso/leolm-soggiorno.env --target /mnt/leolm-root
+python scripts/leolm-deploy.py validate --profile /path/leolm-living-room.env
+python scripts/leolm-deploy.py dry-run --profile /path/leolm-living-room.env --json
+python scripts/leolm-deploy.py deploy-ssh --profile /path/leolm-living-room.env --host leolm-living-room --user pi
+python scripts/leolm-deploy.py verify --profile /path/leolm-living-room.env --target leolm-living-room
 ```
 
-Lo staging offline crea `leolm-bootstrap.service`. Al primo avvio, dopo la rete, il bootstrap crea
-l'utente gestito, installa le dipendenze nel target, completa la configurazione e avvia LeoLM; il
-bootstrap viene poi disabilitato. Finché questo passaggio non avviene, `verify` mostra
-`bootstrap: pending`, non uno stato sano.
+SSH access must already be configured with a key, and the account must be able to perform
+administrative operations without an interactive prompt. The command checks Python, systemd,
+NetworkManager, and privileges before installing. It copies the code and generated files, creates
+the virtual environment on the Raspberry architecture, installs dependencies, configures Wi-Fi,
+and enables `leolm.service` at boot. A virtual environment created on the PC is never copied.
 
-Il servizio `leolm.service` parte dopo `network-online.target`, usa l'utente configurato e riavvia
-con ritardo limitato. Per il recupero controllare lo stato di NetworkManager, del servizio e i log
-del servizio senza copiare password, token o API key nei comandi o nei report. Le API online possono
-ricevere audio o testo secondo la configurazione e le loro policy: consultare `docs/privacy.md`.
+For an image or mounted filesystem:
+
+```bash
+python scripts/leolm-deploy.py provision-offline --profile /path/leolm-living-room.env --root /mnt/leolm-root
+python scripts/leolm-deploy.py verify --profile /path/leolm-living-room.env --target /mnt/leolm-root
+```
+
+Offline staging creates `leolm-bootstrap.service`. On first boot, after networking is available,
+the bootstrap creates the managed user, installs target dependencies, completes configuration, and
+starts LeoLM; it is then disabled. Until this happens, `verify` reports `bootstrap: pending`, not a
+healthy state.
+
+`leolm.service` starts after `network-online.target`, uses the configured user, and restarts with
+a bounded delay. For recovery, inspect NetworkManager, the service state, and service logs without
+putting passwords, tokens, or API keys into commands or reports. Online APIs may receive audio or
+text according to the configuration and their policies; see `docs/privacy.md`.

@@ -1,13 +1,23 @@
-# Dipendenze e compatibilità di sistema
+# System dependencies and compatibility
 
-## Matrice supportata
+## Supported matrix
 
-Il target supportato è Raspberry Pi OS Bookworm Lite 32-bit o 64-bit su Raspberry Pi Zero 2 W, con systemd e NetworkManager attivi. Versioni precedenti o distribuzioni prive di queste componenti non sono supportate automaticamente.
+The supported target is Raspberry Pi OS Bookworm Lite, 32-bit or 64-bit, on Raspberry Pi Zero 2 W,
+with systemd and NetworkManager active. Older versions or distributions without these components
+are not automatically supported.
 
-Il PC di provisioning richiede Python 3.11+, `ssh` e accesso in scrittura al filesystem quando si prepara un'immagine montata. Il provisioning SSH installa sul target `python3`, `python3-venv`, `python3-pip`, `libportaudio2`, `portaudio19-dev`, `flac`, `alsa-utils` e `network-manager`, poi installa `requirements.txt` nel virtual environment target; `requirements-dev.txt` è riservato a sviluppo e test. Lo staging offline esegue la stessa installazione al primo boot tramite bootstrap.
+The provisioning PC requires Python 3.11+, `ssh`, and write access to a mounted filesystem when
+preparing an image. SSH provisioning installs `python3`, `python3-venv`, `python3-pip`,
+`libportaudio2`, `portaudio19-dev`, `flac`, `alsa-utils`, and `network-manager` on the target, then
+installs `requirements.txt` in the target virtual environment. `requirements-dev.txt` is for
+development and tests only. Offline staging performs the same installation on first boot through
+the bootstrap service.
 
-## Audio e test
+## Audio and tests
 
-Per il flusso vocale reale servono Linux, ALSA/PortAudio, PyAudio, `flac` per il riconoscimento e un player audio configurato. I pacchetti di sistema vengono installati durante il provisioning, mai all'avvio dell'assistente e mai dalla suite automatica.
+The real voice flow requires Linux, ALSA/PortAudio, PyAudio, `flac` for speech recognition, and a
+configured audio player. System packages are installed during provisioning, never when the
+assistant starts, and never by the automatic test suite.
 
-La verifica offline controlla solo la configurazione (`configured`). La verifica `hardware_verified` richiede i test opt-in su Raspberry con microfono e speaker reali.
+Offline verification checks configuration only (`configured`). The `hardware_verified` state
+requires the opt-in tests on a Raspberry Pi with a real microphone and speaker.

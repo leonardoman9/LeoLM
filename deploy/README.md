@@ -1,8 +1,11 @@
 # LeoLM deployment
 
-Il deployer usa profili `.env` reali conservati in una directory privata del PC. Il repository contiene solo `profiles/example.env`.
+The deployer uses real `.env` profiles stored in a private directory on the PC. The repository
+contains only `profiles/example.env`.
 
-Target supportato: Raspberry Pi OS Bookworm Lite 32-bit o 64-bit su Raspberry Pi Zero 2 W, con systemd e NetworkManager. Il PC deve avere Python 3.11+, `ssh` e, per il trasporto remoto, accesso SSH già configurato.
+Supported target: Raspberry Pi OS Bookworm Lite, 32-bit or 64-bit, on Raspberry Pi Zero 2 W with
+systemd and NetworkManager. The PC requires Python 3.11+, `ssh`, and preconfigured SSH access for
+remote transport.
 
 ```bash
 python scripts/leolm-deploy.py validate --profile "$HOME/.config/leolm/profiles/pi.env"
@@ -12,4 +15,7 @@ python scripts/leolm-deploy.py deploy-ssh --profile "$HOME/.config/leolm/profile
 python scripts/leolm-deploy.py verify --profile "$HOME/.config/leolm/profiles/pi.env" --target /mnt/pi
 ```
 
-Su immagini cross-architettura il codice e i requirements vengono predisposti e `leolm-bootstrap.service` completa automaticamente venv e dipendenze al primo boot dopo il Wi-Fi. I keyfile Wi-Fi sono root-owned `0600`; i log non contengono credenziali. MCP non viene installato né esposto.
+For cross-architecture images, the code and requirements are staged and
+`leolm-bootstrap.service` completes the virtual environment and dependency installation on the
+first boot after Wi-Fi is available. Wi-Fi keyfiles are root-owned with mode `0600`; logs contain
+no credentials. MCP is neither installed nor exposed.

@@ -1,17 +1,25 @@
 # Troubleshooting
 
-## Configurazione
+## Configuration
 
-Usare `docs/configuration.md` come riferimento. Un errore indica il nome della variabile, mai il suo valore. Gli asset wake word devono esistere nei percorsi configurati e i selettori audio devono corrispondere al dispositivo disponibile.
+Use `docs/configuration.md` as the reference. An error identifies the variable name, never its
+value. Wake word assets must exist at the configured paths, and audio selectors must match an
+available device.
 
-## Rete e provider
+## Network and providers
 
-Le richieste remote hanno timeout configurabile e retry limitati. Dopo l'ultimo errore LeoLM rilascia le risorse audio e torna alla wake word/ascolto. Verificare endpoint, DNS, connettività e policy del provider senza inserire API key nei comandi o nei log.
+Remote requests have configurable timeouts and limited retries. After the final error, LeoLM
+releases audio resources and returns to wake word detection/listening. Check the endpoint, DNS,
+connectivity, and provider policy without putting API keys into commands or logs.
 
-## Deployment e boot
+## Deployment and boot
 
-Controllare NetworkManager, poi `systemctl status leolm.service` e `journalctl -u leolm.service`. Su immagini cross-architettura verificare prima `leolm-bootstrap.service`; il bootstrap installa il virtual environment al primo boot dopo `network-online.target` e si disabilita dopo il successo.
+Check NetworkManager, then `systemctl status leolm.service` and `journalctl -u leolm.service`. On
+cross-architecture images, check `leolm-bootstrap.service` first; the bootstrap installs the
+virtual environment after `network-online.target` on first boot and disables itself after success.
 
 ## Privacy
 
-Il contesto conversazionale scade dopo 600 secondi dall'ultima interazione valida. Audio e TTS sono temporanei; la retention dei servizi online dipende dai provider. Per la procedura PC→Raspberry consultare [deployment.md](deployment.md) e per i dati consultare [privacy.md](privacy.md).
+Conversation context expires 600 seconds after the last valid interaction. Audio and TTS data are
+temporary; online-service retention depends on the providers. See [deployment.md](deployment.md)
+for PC-to-Raspberry procedures and [privacy.md](privacy.md) for data handling.

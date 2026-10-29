@@ -1,3 +1,5 @@
 # Hardware tests
 
-I test in questa directory richiedono Raspberry, microfono, speaker o ALSA e sono opt-in con il marker `hardware`. La suite predefinita non li esegue. La verifica audio distingue configurazione statica (`configured`) da dispositivo fisico verificato (`hardware_verified`).
+Tests in this directory require a Raspberry Pi, microphone, speaker, or ALSA and are opt-in with
+the `hardware` marker. The default suite does not run them. Audio verification distinguishes static
+configuration (`configured`) from a verified physical device (`hardware_verified`).
