@@ -11,7 +11,7 @@ from .errors import LeoLMError
 from .llm import OpenRouterConversation
 from .logging import configure_logging, safe_error
 from .session import VoiceSession
-from .speech import GoogleSpeechRecognizer
+from .speech import WhisperLocalRecognizer
 from .tts import GoogleTTS
 from .sounds import SoundPlayer
 from .wakeword import VoskWakeWord
@@ -27,7 +27,7 @@ def run() -> int:
             config,
             audio,
             VoskWakeWord(config, audio),
-            GoogleSpeechRecognizer(config),
+            WhisperLocalRecognizer(config),
             VoiceSession(OpenRouterConversation(config), context=None),
             GoogleTTS(config),
             logger=logger,

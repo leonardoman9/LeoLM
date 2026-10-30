@@ -7,3 +7,4 @@ vosk==0.3.45
 SpeechRecognition>=3.10,<4
 numpy>=1.23,<3
 scipy>=1.10,<2
+pywhispercpp>=1.5,<2
