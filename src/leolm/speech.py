@@ -18,11 +18,18 @@ class GoogleSpeechRecognizer:
             except ImportError as exc:
                 raise ExternalServiceError("SpeechRecognition is not installed", "Riconoscimento vocale non disponibile") from exc
         try:
+            import speech_recognition as sr
             text = self.recognizer.recognize_google(audio, language=language or self.config.language)
+        except sr.UnknownValueError as exc:
+            raise ExternalServiceError("Speech not understood", "Non ho capito, riprova") from exc
+        except sr.RequestError as exc:
+            raise ExternalServiceError("Google Speech API error", "Servizio di riconoscimento non raggiungibile") from exc
+        except ExternalServiceError:
+            raise
         except Exception as exc:
             raise ExternalServiceError("Speech recognition request failed", "Riconoscimento vocale non riuscito") from exc
         if not text or not text.strip():
-            raise ExternalServiceError("Speech recognition returned empty text", "Nessun comando riconosciuto")
+            raise ExternalServiceError("Speech recognition returned empty text", "Non ho capito, riprova")
         return text.strip()
 
     def listen(self, device, timeout: float = 5, phrase_limit: float = 5):
