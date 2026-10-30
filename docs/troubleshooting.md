@@ -3,8 +3,9 @@
 ## Configuration
 
 Use `docs/configuration.md` as the reference. An error identifies the variable name, never its
-value. Wake word assets must exist at the configured paths, and audio selectors must match an
-available device.
+value. The verified Vosk model must exist at `LEOLM_VOSK_MODEL_PATH`, and audio selectors must
+match an available device. Re-run the PC-side model acquisition command if the model is missing;
+the service never downloads it itself.
 
 ## Network and providers
 

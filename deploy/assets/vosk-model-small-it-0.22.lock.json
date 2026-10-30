@@ -1,0 +1,7 @@
+{
+  "name": "vosk-model-small-it-0.22",
+  "source_url": "https://alphacephei.com/vosk/models/vosk-model-small-it-0.22.zip",
+  "sha256": "9ec65e75861d1c6c2e457cccd932705340dcdf233f5b239f00733b4de0bf3267",
+  "max_archive_bytes": 60000000,
+  "install_relative_path": "models/vosk-model-small-it-0.22"
+}

@@ -11,5 +11,6 @@ dist/
 .pytest_cache/
 .coverage
 coverage.xml
+models/
 deploy/profiles/*.env
 !deploy/profiles/example.env

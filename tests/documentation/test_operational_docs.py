@@ -6,3 +6,4 @@ def test_operational_docs_mention_context_and_provider_limits():
     assert "600" in text
     assert "provider" in text.lower()
     assert "retry" in text.lower()
+    assert "vosk" in text.lower()

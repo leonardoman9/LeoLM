@@ -16,5 +16,6 @@ def test_contract_has_two_scopes(docs_root):
     report = checker.Report()
     contract = checker.parse_contract(docs_root / "docs/configuration.md", report)
     assert contract["LEOLM_MODEL"]["scope"] == "runtime"
+    assert contract["LEOLM_VOSK_MODEL_PATH"]["scope"] == "runtime"
     assert contract["DEVICE_ID"]["scope"] == "deployment"
     assert not report.errors

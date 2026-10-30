@@ -15,6 +15,9 @@ def verify_offline(profile: DeviceProfile, root: Path) -> DeploymentReport:
     report.add_check("application", "configured" if app.exists() else "missing")
     env = app / ".env"
     report.add_check("secrets", "protected" if env.exists() and (env.stat().st_mode & 0o777) == 0o600 else "invalid")
+    model = app / "models" / "vosk-model-small-it-0.22"
+    required = ("am/final.mdl", "conf/model.conf", "graph/HCLr.fst", "graph/Gr.fst")
+    report.add_check("wakeword_asset", "healthy" if all((model / item).is_file() for item in required) else "missing")
     report.add_check("audio", "configured")
     report.add_check("wifi", "configured" if (root / "etc/NetworkManager/system-connections").exists() else "missing")
     report.add_check("service", "configured" if (root / "etc/systemd/system/leolm.service").exists() else "missing")
@@ -31,6 +34,8 @@ def verify_ssh(profile: DeviceProfile, host: str, *, user: str = "pi", port: int
         "environment": f"test -f {root}/.env && test \"$(stat -c %a {root}/.env)\" = 600",
         "service": "systemctl is-enabled leolm.service",
         "runtime": "systemctl is-active leolm.service",
+        "wakeword_asset": f"test -f {root}/models/vosk-model-small-it-0.22/am/final.mdl",
+        "wakeword_runtime": f"{root}/.venv/bin/python -c 'import vosk'",
         "wifi": "nmcli -t -f NAME connection show",
     }
     for name, command in checks.items():

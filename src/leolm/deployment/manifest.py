@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import shutil
 
+from .errors import DeploymentError
 from .profile import DeviceProfile
 from .render import bootstrap_script, runtime_env, service_unit, wifi_keyfile
 
@@ -29,6 +30,8 @@ def manifest(profile: DeviceProfile) -> tuple[ManagedFile, ...]:
         ManagedFile("etc/systemd/system/leolm.service", 0o644),
         ManagedFile("etc/systemd/system/leolm-bootstrap.service", 0o644),
         ManagedFile(f"{root}/deploy/bootstrap.py", 0o700),
+        ManagedFile(f"{root}/models/vosk-model-small-it-0.22", 0o755),
+        ManagedFile(f"{root}/deploy/assets/vosk-model-small-it-0.22.lock.json", 0o644),
     )
 
 
@@ -45,13 +48,17 @@ def stage_payload(profile: DeviceProfile, destination: Path) -> Path:
         elif source.is_file():
             shutil.copy2(source, app / name)
     deployed_values = dict(profile.values)
-    for key in ("LEOLM_WAKE_WORD_PATH", "LEOLM_WAKE_MODEL_PATH"):
-        configured = Path(profile.values[key])
-        source_asset = configured if configured.is_absolute() else source_root / configured
-        if source_asset.is_file():
-            target_asset = app / source_asset.name
-            shutil.copy2(source_asset, target_asset)
-            deployed_values[key] = source_asset.name
+    configured = Path(profile.values["LEOLM_VOSK_MODEL_PATH"])
+    source_model = configured if configured.is_absolute() else source_root / configured
+    if not source_model.is_dir():
+        raise DeploymentError("Vosk model is missing", safe_message="Modello wake word non disponibile per il deploy")
+    target_model = app / "models" / "vosk-model-small-it-0.22"
+    shutil.copytree(source_model, target_model, dirs_exist_ok=True)
+    lock_source = source_root / "deploy/assets/vosk-model-small-it-0.22.lock.json"
+    lock_target = app / "deploy/assets/vosk-model-small-it-0.22.lock.json"
+    lock_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(lock_source, lock_target)
+    deployed_values["LEOLM_VOSK_MODEL_PATH"] = "models/vosk-model-small-it-0.22"
     deployed_profile = DeviceProfile(deployed_values, profile.source)
     (app / ".env").write_text(runtime_env(deployed_profile), encoding="utf-8")
     (app / ".env").chmod(0o600)
@@ -79,5 +86,5 @@ def redacted_plan(profile: DeviceProfile, transport: str) -> dict[str, object]:
         "architecture": "target-side-install",
         "application_root": app_root(profile),
         "managed_files": [{"path": item.relative, "mode": oct(item.mode), "secret": item.secret} for item in manifest(profile)],
-        "actions": ["preflight", "copy-payload", "install-target-dependencies", "configure-wifi", "enable-service", "verify"],
+        "actions": ["preflight", "verify-vosk-model", "copy-payload", "install-target-dependencies", "configure-wifi", "enable-service", "verify"],
     }

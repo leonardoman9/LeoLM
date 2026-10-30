@@ -3,12 +3,13 @@
 The deployer uses real `.env` profiles stored in a private directory on the PC. The repository
 contains only `profiles/example.env`.
 
-Supported target: Raspberry Pi OS Bookworm Lite, 32-bit or 64-bit, on Raspberry Pi Zero 2 W with
-systemd and NetworkManager. The PC requires Python 3.11+, `ssh`, and preconfigured SSH access for
-remote transport.
+Validated target: Raspberry Pi 3 ARM64 with systemd and NetworkManager. Raspberry Pi Zero 2 W and
+armhf wake-word validation are deferred. The PC requires Python 3.11+, `ssh`, and preconfigured SSH
+access for remote transport.
 
 ```bash
 python scripts/leolm-deploy.py validate --profile "$HOME/.config/leolm/profiles/pi.env"
+python scripts/fetch-vosk-model.py --destination models/vosk-model-small-it-0.22
 python scripts/leolm-deploy.py dry-run --profile "$HOME/.config/leolm/profiles/pi.env" --target /mnt/pi
 python scripts/leolm-deploy.py provision-offline --profile "$HOME/.config/leolm/profiles/pi.env" --root /mnt/pi
 python scripts/leolm-deploy.py deploy-ssh --profile "$HOME/.config/leolm/profiles/pi.env" --host pi.local

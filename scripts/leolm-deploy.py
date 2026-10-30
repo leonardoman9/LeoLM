@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,10 +40,13 @@ def parser() -> argparse.ArgumentParser:
     ssh.add_argument("--user", default="pi")
     ssh.add_argument("--port", type=int, default=22)
     ssh.add_argument("--timeout", type=float, default=60.0)
+    ssh.add_argument("--verbose", action="store_true")
     ssh.add_argument("--json", action="store_true")
     verify = sub.add_parser("verify")
     verify.add_argument("--profile", required=True)
     verify.add_argument("--target", required=True)
+    verify.add_argument("--user", default="pi")
+    verify.add_argument("--port", type=int, default=22)
     verify.add_argument("--json", action="store_true")
     return p
 
@@ -56,6 +60,19 @@ def print_report(report, as_json: bool) -> None:
         print(f"{check.name}: {check.status}")
     for error in report.errors:
         print(f"error: {error}", file=sys.stderr)
+
+
+def ensure_vosk_model(profile, *, verbose: bool = False) -> None:
+    """Acquire the locked public asset locally only when it is not already complete."""
+    configured = Path(profile.values["LEOLM_VOSK_MODEL_PATH"])
+    destination = configured if configured.is_absolute() else ROOT / configured
+    try:
+        command = [sys.executable, str(ROOT / "scripts/fetch-vosk-model.py"), "--destination", str(destination)]
+        if verbose:
+            command.append("--verbose")
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        raise DeploymentError("Vosk model acquisition failed", safe_message="Modello wake word non disponibile per il deploy") from exc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -73,16 +90,17 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(plan, ensure_ascii=False, indent=2) if args.json else "dry-run: no files changed")
             return 0
         profile = load_profile(args.profile)
+        ensure_vosk_model(profile, verbose=getattr(args, "verbose", False))
         if args.command == "provision-offline":
             report = OfflineProvisioner(Path(args.root)).provision(profile)
         elif args.command == "deploy-ssh":
-            report = SSHProvisioner(args.host, args.user, args.port, args.timeout).provision(profile)
+            report = SSHProvisioner(args.host, args.user, args.port, args.timeout, verbose=args.verbose).provision(profile)
         else:
             target = Path(args.target)
             if target.is_dir():
                 report = verify_offline(profile, target)
             else:
-                report = verify_ssh(profile, args.target)
+                report = verify_ssh(profile, args.target, user=args.user, port=args.port)
         print_report(report, args.json)
         return 0 if not report.errors else 1
     except DeploymentError as exc:

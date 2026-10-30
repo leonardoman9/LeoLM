@@ -10,13 +10,12 @@ secrets, and error behavior. The validator reads the two tables using these exac
 | Name | Required | Default | Format | Secret | Safe example | Effect and error behavior |
 |---|---|---|---|---|---|---|
 | `LEOLM_CONVERSATION_API_KEY` | yes | — | non-empty string | yes | `replace-on-device` | Conversation provider; startup error if missing |
-| `LEOLM_PORCUPINE_ACCESS_KEY` | yes | — | non-empty string | yes | `replace-on-device` | Wake word provider; startup error if missing |
 | `LEOLM_MODEL` | no | `google/gemini-2.0-flash-thinking-exp:free` | provider model id | no | `test/model` | Model used for conversation |
 | `LEOLM_CONVERSATION_ENDPOINT` | no | `https://openrouter.ai/api/v1/chat/completions` | HTTP(S) URL | no | `https://example.invalid/chat` | Invalid URL prevents startup |
 | `LEOLM_LANGUAGE` | no | `it-IT` | BCP-47 language tag | no | `it-IT` | Speech and TTS language |
 | `LEOLM_WAKE_WORD` | no | `Panda` | non-empty string | no | `Panda` | Wake word label |
-| `LEOLM_WAKE_WORD_PATH` | no | `Panda_it_raspberry-pi_v3_0_0.ppn` | readable file path | no | `wake.ppn` | Missing asset produces a configuration error |
-| `LEOLM_WAKE_MODEL_PATH` | no | `porcupine_params_it.pv` | readable file path | no | `model.pv` | Missing asset produces a configuration error |
+| `LEOLM_VOSK_MODEL_PATH` | yes | `models/vosk-model-small-it-0.22` | readable local model directory | no | `models/vosk-model-small-it-0.22` | Missing or incomplete model produces a configuration error |
+| `LEOLM_WAKE_SAMPLE_RATE` | no | `16000` | positive integer Hz | no | `16000` | Unsupported or invalid rate produces a configuration error |
 | `LEOLM_INPUT_DEVICE` | no | — | audio selector | no | `fake-input` | Selects microphone; unavailable device is reported safely |
 | `LEOLM_OUTPUT_DEVICE` | no | — | audio selector | no | `fake-output` | Selects speaker; unavailable device is reported safely |
 | `LEOLM_NETWORK_TIMEOUT_SECONDS` | no | `30` | positive seconds | no | `30` | Bounds remote request duration |

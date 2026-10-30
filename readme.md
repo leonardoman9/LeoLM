@@ -1,6 +1,7 @@
 # LeoLM — Raspberry Pi voice assistant
 
-LeoLM is a voice assistant for Raspberry Pi Zero 2 W. Its main flow is wake word detection, an
+LeoLM is a voice assistant validated on Raspberry Pi 3 ARM64. Raspberry Pi Zero 2 W wake-word
+validation is deferred. Its main flow is local wake word detection, an
 Italian voice command, a request to the configured model, and a spoken response.
 
 ## Features
@@ -69,7 +70,7 @@ and [`docs/system-dependencies.md`](docs/system-dependencies.md).
 ## Troubleshooting
 
 - If a key is missing, check the variable name without putting its value in logs.
-- If a wake word asset is missing, check `LEOLM_WAKE_WORD_PATH` and `LEOLM_WAKE_MODEL_PATH`.
+- If the wake word is unavailable, check `LEOLM_VOSK_MODEL_PATH` and run the documented PC-side model acquisition command.
 - If an audio device cannot be found, use a configurable selector and run the opt-in hardware tests.
 - If a remote service does not respond, LeoLM performs at most the configured retries and returns to listening.
 

@@ -26,6 +26,17 @@ def _positive_float(env: dict[str, str], name: str, default: float) -> float:
     return value
 
 
+def _positive_int(env: dict[str, str], name: str, default: int) -> int:
+    raw = _env(env, name, str(default))
+    try:
+        value = int(raw or "")
+    except ValueError as exc:
+        raise ConfigurationError(f"Invalid integer value for {name}", f"Configurazione non valida: {name}") from exc
+    if value <= 0:
+        raise ConfigurationError(f"{name} must be positive", f"Configurazione non valida: {name}")
+    return value
+
+
 def _non_negative_float(env: dict[str, str], name: str, default: float) -> float:
     value = _positive_float(env, name, default) if default else float(_env(env, name, "0") or "0")
     if value < 0:
@@ -36,13 +47,12 @@ def _non_negative_float(env: dict[str, str], name: str, default: float) -> float
 @dataclass(frozen=True)
 class RuntimeConfig:
     conversation_api_key: str | None
-    porcupine_access_key: str | None
     model: str
     conversation_endpoint: str
     language: str
     wake_word: str
-    wake_word_path: Path
-    wake_model_path: Path
+    vosk_model_path: Path
+    wake_sample_rate: int
     input_selector: str | None
     output_selector: str | None
     network_timeout: float
@@ -56,13 +66,14 @@ class RuntimeConfig:
             "conversation_endpoint": self.conversation_endpoint,
             "language": self.language,
             "wake_word": self.wake_word,
+            "vosk_model_path": str(self.vosk_model_path),
+            "wake_sample_rate": self.wake_sample_rate,
             "input_selector": self.input_selector,
             "output_selector": self.output_selector,
             "network_timeout": self.network_timeout,
             "retry_count": self.retry_count,
             "context_idle_timeout": self.context_idle_timeout,
             "conversation_api_key_set": bool(self.conversation_api_key),
-            "porcupine_access_key_set": bool(self.porcupine_access_key),
         }
 
 
@@ -72,16 +83,12 @@ def load_config(env: dict[str, str] | None = None, *, require_services: bool = T
     parsed = urlparse(endpoint or "")
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ConfigurationError("Invalid conversation endpoint", "Configurazione non valida: LEOLM_CONVERSATION_ENDPOINT")
-
     api_key = _env(values, "LEOLM_CONVERSATION_API_KEY", _env(values, "OPENAI_API_KEY"))
-    porcupine_key = _env(values, "LEOLM_PORCUPINE_ACCESS_KEY", _env(values, "PORCUPINE_ACCESS_KEY"))
     if require_services and not api_key:
         raise ConfigurationError("Missing LEOLM_CONVERSATION_API_KEY", "Manca LEOLM_CONVERSATION_API_KEY")
-    if require_services and not porcupine_key:
-        raise ConfigurationError("Missing LEOLM_PORCUPINE_ACCESS_KEY", "Manca LEOLM_PORCUPINE_ACCESS_KEY")
-
-    wake_path = Path(_env(values, "LEOLM_WAKE_WORD_PATH", "Panda_it_raspberry-pi_v3_0_0.ppn") or "")
-    model_path = Path(_env(values, "LEOLM_WAKE_MODEL_PATH", "porcupine_params_it.pv") or "")
+    wake_word = _env(values, "LEOLM_WAKE_WORD", "Panda")
+    if not wake_word:
+        raise ConfigurationError("Wake word is empty", "Configurazione non valida: LEOLM_WAKE_WORD")
     retry_count_raw = _env(values, "LEOLM_RETRY_COUNT", "2")
     try:
         retry_count = int(retry_count_raw or "")
@@ -89,16 +96,14 @@ def load_config(env: dict[str, str] | None = None, *, require_services: bool = T
         raise ConfigurationError("Invalid retry count", "Configurazione non valida: LEOLM_RETRY_COUNT") from exc
     if not 0 <= retry_count <= 2:
         raise ConfigurationError("LEOLM_RETRY_COUNT must be between 0 and 2", "Configurazione non valida: LEOLM_RETRY_COUNT")
-
     return RuntimeConfig(
         conversation_api_key=api_key,
-        porcupine_access_key=porcupine_key,
         model=_env(values, "LEOLM_MODEL", "google/gemini-2.0-flash-thinking-exp:free") or "",
         conversation_endpoint=endpoint or "",
         language=_env(values, "LEOLM_LANGUAGE", "it-IT") or "it-IT",
-        wake_word=_env(values, "LEOLM_WAKE_WORD", "Panda") or "Panda",
-        wake_word_path=wake_path,
-        wake_model_path=model_path,
+        wake_word=wake_word,
+        vosk_model_path=Path(_env(values, "LEOLM_VOSK_MODEL_PATH", "models/vosk-model-small-it-0.22") or ""),
+        wake_sample_rate=_positive_int(values, "LEOLM_WAKE_SAMPLE_RATE", 16000),
         input_selector=_env(values, "LEOLM_INPUT_DEVICE"),
         output_selector=_env(values, "LEOLM_OUTPUT_DEVICE"),
         network_timeout=_positive_float(values, "LEOLM_NETWORK_TIMEOUT_SECONDS", 30),
@@ -108,7 +113,7 @@ def load_config(env: dict[str, str] | None = None, *, require_services: bool = T
     )
 
 
-def validate_asset_paths(config: RuntimeConfig) -> None:
-    for name, path in (("LEOLM_WAKE_WORD_PATH", config.wake_word_path), ("LEOLM_WAKE_MODEL_PATH", config.wake_model_path)):
-        if not path.is_file():
-            raise ConfigurationError(f"{name} is not readable", f"File configurato non disponibile: {name}")
+def validate_vosk_model_path(config: RuntimeConfig) -> None:
+    required = ("am/final.mdl", "conf/model.conf", "graph/HCLr.fst", "graph/Gr.fst")
+    if not config.vosk_model_path.is_dir() or any(not (config.vosk_model_path / item).is_file() for item in required):
+        raise ConfigurationError("Vosk model is not readable", "Modello wake word non disponibile")

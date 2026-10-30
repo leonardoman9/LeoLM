@@ -13,7 +13,8 @@ from .logging import configure_logging, safe_error
 from .session import VoiceSession
 from .speech import GoogleSpeechRecognizer
 from .tts import GoogleTTS
-from .wakeword import PorcupineWakeWord
+from .sounds import SoundPlayer
+from .wakeword import VoskWakeWord
 
 
 def run() -> int:
@@ -21,14 +22,16 @@ def run() -> int:
     try:
         config = load_config()
         audio = AudioManager()
+        sounds = SoundPlayer(device=config.output_selector)
         application = VoiceApplication(
             config,
             audio,
-            PorcupineWakeWord(config, audio),
+            VoskWakeWord(config, audio),
             GoogleSpeechRecognizer(config),
             VoiceSession(OpenRouterConversation(config), context=None),
             GoogleTTS(config),
             logger=logger,
+            sounds=sounds,
         )
         logger.info("LeoLM listening with model %s and language %s", config.model, config.language)
         return application.run()

@@ -4,8 +4,9 @@ LeoLM keeps the current conversation text in memory to provide context for subse
 Each valid interaction resets the timer; after 600 seconds of inactivity, the context is deleted.
 Audio and TTS responses are temporary, and no persistent local history is stored.
 
-Text and context may be sent to configured speech recognition, conversational model, text-to-speech,
-and wake word services when required by the provider. Network retry attempts and timeouts are
+Text and context may be sent to configured speech recognition, conversational model, and text-to-speech
+services when required by the provider. Wake-word audio is processed locally by Vosk and is not sent
+to a wake-word provider. Network retry attempts and timeouts are
 limited; after the
 last error, the system returns to listening. Retention by external providers depends on their
 policies and is not controlled by LeoLM.

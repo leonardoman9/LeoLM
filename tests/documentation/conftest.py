@@ -13,6 +13,7 @@ def docs_root(tmp_path: Path) -> Path:
 | Name | Required | Default | Format | Secret | Safe example | Effect and error behavior |
 |---|---|---|---|---|---|---|
 | `LEOLM_MODEL` | no | `model` | id | no | `test/model` | model |
+| `LEOLM_VOSK_MODEL_PATH` | yes | `models/vosk-model-small-it-0.22` | directory | no | `models/vosk-model-small-it-0.22` | model |
 ## Deployment variables
 | Name | Required | Default | Format | Secret | Safe example | Effect and error behavior |
 |---|---|---|---|---|---|---|
@@ -23,6 +24,6 @@ def docs_root(tmp_path: Path) -> Path:
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# Document\n", encoding="utf-8")
-    (tmp_path / "examples/.env.example").write_text("LEOLM_MODEL=model\n", encoding="utf-8")
-    (tmp_path / "deploy/profiles/example.env").write_text("LEOLM_MODEL=model\nDEVICE_ID=test\n", encoding="utf-8")
+    (tmp_path / "examples/.env.example").write_text("LEOLM_MODEL=model\nLEOLM_VOSK_MODEL_PATH=models/vosk-model-small-it-0.22\n", encoding="utf-8")
+    (tmp_path / "deploy/profiles/example.env").write_text("LEOLM_MODEL=model\nLEOLM_VOSK_MODEL_PATH=models/vosk-model-small-it-0.22\nDEVICE_ID=test\n", encoding="utf-8")
     return tmp_path

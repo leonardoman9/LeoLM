@@ -12,11 +12,11 @@ from urllib.parse import urlparse
 from ..config import load_config
 from .errors import ProfileError
 
-SECRET_KEYS = frozenset({"WIFI_PASSWORD", "LEOLM_CONVERSATION_API_KEY", "LEOLM_PORCUPINE_ACCESS_KEY"})
+SECRET_KEYS = frozenset({"WIFI_PASSWORD", "LEOLM_CONVERSATION_API_KEY"})
 REQUIRED_KEYS = frozenset({
     "DEVICE_ID", "DEVICE_HOSTNAME", "WIFI_SSID", "WIFI_PASSWORD", "WIFI_COUNTRY",
-    "LEOLM_CONVERSATION_API_KEY", "LEOLM_PORCUPINE_ACCESS_KEY", "LEOLM_MODEL",
-    "LEOLM_LANGUAGE", "LEOLM_WAKE_WORD", "LEOLM_WAKE_WORD_PATH", "LEOLM_WAKE_MODEL_PATH",
+    "LEOLM_CONVERSATION_API_KEY", "LEOLM_MODEL", "LEOLM_LANGUAGE", "LEOLM_WAKE_WORD",
+    "LEOLM_VOSK_MODEL_PATH", "LEOLM_WAKE_SAMPLE_RATE",
     "LEOLM_INPUT_DEVICE", "LEOLM_OUTPUT_DEVICE",
 })
 ALLOWED_KEYS = REQUIRED_KEYS | frozenset({
@@ -92,7 +92,7 @@ class DeviceProfile:
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ProfileError("Invalid endpoint", safe_message="LEOLM_CONVERSATION_ENDPOINT non è valido")
         try:
-            load_config({**self.values, "LEOLM_WAKE_WORD_PATH": self.values["LEOLM_WAKE_WORD_PATH"], "LEOLM_WAKE_MODEL_PATH": self.values["LEOLM_WAKE_MODEL_PATH"]}, require_services=False)
+            load_config(self.values, require_services=False)
         except Exception as exc:
             raise ProfileError("Invalid LeoLM configuration", safe_message="La configurazione LeoLM non è valida") from exc
 

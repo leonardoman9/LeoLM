@@ -6,7 +6,7 @@ from .errors import LeoLMError
 
 
 class VoiceApplication:
-    def __init__(self, config, audio, wakeword, speech, session, tts, *, logger=None):
+    def __init__(self, config, audio, wakeword, speech, session, tts, *, logger=None, sounds=None):
         self.config = config
         self.audio = audio
         self.wakeword = wakeword
@@ -14,12 +14,19 @@ class VoiceApplication:
         self.session = session
         self.tts = tts
         self.logger = logger
+        self.sounds = sounds
         self.running = True
+
+    def _beep(self, name: str) -> None:
+        if self.sounds:
+            self.sounds.play(name)
 
     def run_once(self) -> str:
         self.wakeword.wait_for_wake()
+        self._beep("wake")
         device = self.audio.resolve(self.config.input_selector, "input")
         audio = self.speech.listen(device, timeout=5, phrase_limit=5)
+        self._beep("thinking")
         text = self.speech.transcribe(audio, self.config.language)
         reply = self.session.process(text)
         with self.tts.synthesize(reply, self.config.language) as path:
@@ -27,6 +34,7 @@ class VoiceApplication:
         return reply
 
     def run(self) -> int:
+        self._beep("startup")
         try:
             while self.running:
                 try:

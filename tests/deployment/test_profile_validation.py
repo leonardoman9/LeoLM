@@ -10,9 +10,9 @@ def profile_text(**overrides):
     values = {
         "DEVICE_ID": "pi-one", "DEVICE_HOSTNAME": "leolm-one", "WIFI_SSID": "test-wifi",
         "WIFI_PASSWORD": "fake-wifi-password", "WIFI_COUNTRY": "IT",
-        "LEOLM_CONVERSATION_API_KEY": "fake-api-key", "LEOLM_PORCUPINE_ACCESS_KEY": "fake-access-key",
+        "LEOLM_CONVERSATION_API_KEY": "fake-api-key",
         "LEOLM_MODEL": "test/model", "LEOLM_LANGUAGE": "it-IT", "LEOLM_WAKE_WORD": "Panda",
-        "LEOLM_WAKE_WORD_PATH": "wake.ppn", "LEOLM_WAKE_MODEL_PATH": "model.pv",
+        "LEOLM_VOSK_MODEL_PATH": "models/vosk-model-small-it-0.22", "LEOLM_WAKE_SAMPLE_RATE": "16000",
         "LEOLM_INPUT_DEVICE": "input", "LEOLM_OUTPUT_DEVICE": "output",
     }
     values.update(overrides)

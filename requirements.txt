@@ -3,7 +3,7 @@ colorama>=0.4.6,<1
 python-dotenv>=1.0,<2
 gTTS>=2.5,<3
 PyAudio>=0.2.14,<1
-pvporcupine>=3,<4
+vosk==0.3.45
 SpeechRecognition>=3.10,<4
 numpy>=1.23,<3
 scipy>=1.10,<2
