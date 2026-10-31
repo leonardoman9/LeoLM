@@ -17,13 +17,14 @@ def runtime_env(profile: DeviceProfile) -> str:
 
 
 def wifi_keyfile(profile: DeviceProfile) -> str:
-    ssid = profile.values["WIFI_SSID"].replace("\\", "\\\\").replace('"', '\\"')
-    password = profile.values["WIFI_PASSWORD"].replace("\\", "\\\\").replace('"', '\\"')
+    ssid = profile.values["WIFI_SSID"]
+    password = profile.values["WIFI_PASSWORD"]
     hidden = profile.values.get("WIFI_HIDDEN", "false").lower()
     return "\n".join([
-        "[connection]", f"id=LeoLM-{profile.device_id}", "type=wifi", "autoconnect=true", "",
-        "[wifi]", f'ssid="{ssid}"', f"hidden={hidden}", "", "[wifi-security]",
-        "key-mgmt=wpa-psk", f'psk="{password}"', "", "[ipv4]", "method=auto", "",
+        "[connection]", f"id=LeoLM-{profile.device_id}", "type=wifi", "autoconnect=true",
+        "autoconnect-priority=100", "",
+        "[wifi]", f"ssid={ssid}", f"hidden={hidden}", "", "[wifi-security]",
+        "key-mgmt=wpa-psk", f"psk={password}", "", "[ipv4]", "method=auto", "",
         "[ipv6]", "method=auto", "",
     ])
 
